@@ -393,40 +393,65 @@ function overviewSVG(i){
 }
 
 function benchSVG(s){
+  // Drawn as the real board sits in front of you: screen and buttons at the bottom, motor plug at the top.
   const lit=new Set(s.bench||[]), is42=s.drv==='42D', all=!s.bench||!s.bench.length, i=S.indexOf(s), done=new Set();
   // Parts from earlier close-ups in this stage stay drawn; parts you connect later are left out, not greyed.
   if(i>=0) for(let j=0;j<i;j++) if(S[j].stage===s.stage&&S[j].drv===s.drv) (S[j].bench||[]).forEach(x=>x!=='meter'&&done.add(x));
   const g=(id,inner)=>all||lit.has(id)||done.has(id)?`<g class="${lit.has(id)?'st-now':'st-done'}">${inner}</g>`:'';
-  const pin=(x,y,t,anchor='start',dx=8)=>`<rect x="${x-5}" y="${y-5}" width="10" height="10" fill="#1a1a1a" stroke="#111"/><text x="${x+(anchor==='end'?-dx:dx)}" y="${y+4}" text-anchor="${anchor}" fill="#1a1a1a" font-size="12">${t}</text>`;
-  let o=`<rect x="250" y="110" width="260" height="230" rx="12" fill="#ffffff" stroke="#1a1a1a"/>
-    <text x="380" y="215" text-anchor="middle" fill="#1a1a1a" font-size="17" font-weight="800">MKS SERVO${is42?'42D':'57D'}</text>
-    <text x="380" y="235" text-anchor="middle" fill="#6b6b6b" font-size="11">on the back of the motor</text>`;
-  o+=g('coil',`<circle cx="380" cy="40" r="28" fill="#ffffff" stroke="#1a1a1a"/><text x="380" y="44" text-anchor="middle" fill="#1a1a1a" font-size="12" font-weight="700">motor</text>`+
-    (lit.has('meter')?line('360,64 342,96',COL.grn,3)+line('368,67 362,97',COL.blk,3)+line('392,67 398,97',COL.blu,3)+line('400,64 418,96',COL.red,3)+[[342,96],[362,97],[398,97],[418,96]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="3" fill="#ffffff" stroke="#1a1a1a"/>`).join('')
-    :line('360,64 335,110',COL.grn,3)+line('368,67 360,110',COL.blk,3)+line('392,67 400,110',COL.blu,3)+line('400,64 425,110',COL.red,3))+
-    `<text x="248" y="88" fill="#7e3fbf" font-size="11" font-weight="700">coil 1</text><text x="248" y="101" fill="#1a1a1a" font-size="10.5">green + black</text>`+
-    `<text x="430" y="72" fill="#7e3fbf" font-size="11" font-weight="700">coil 2</text><text x="430" y="86" fill="#1a1a1a" font-size="10.5">blue + red</text>`+
-    `<text x="560" y="40" fill="#6b6b6b" font-size="10.5">Colours as in the official diagram.</text><text x="560" y="54" fill="#6b6b6b" font-size="10.5">Check the pairs with the meter.</text><text x="560" y="68" fill="#6b6b6b" font-size="10.5">Inside one coil the order does not matter.</text>`+
-    pin(335,118,'A+','middle',0).replace('y="122"','y="140"')+pin(360,118,'A−','middle',0).replace('y="122"','y="140"')+pin(400,118,'B+','middle',0).replace('y="122"','y="140"')+pin(425,118,'B−','middle',0).replace('y="122"','y="140"'));
-  if(lit.has('meter')) o+=`<g class="st-now">${box(30,14,170,62,'Meter on Ω','reads a few ohms = one coil')}${line('200,36 352,78','#d62828',2.5)}${line('200,56 365,84','#1a1a1a',2.5)}<circle cx="352" cy="78" r="4" fill="#d62828"/><circle cx="365" cy="84" r="4" fill="#1a1a1a"/><text x="115" y="94" text-anchor="middle" fill="#1a1a1a" font-size="10.5">red probe → green wire tip</text><text x="115" y="108" text-anchor="middle" fill="#1a1a1a" font-size="10.5">black probe → black wire tip</text><text x="115" y="122" text-anchor="middle" fill="#6b6b6b" font-size="10.5">2 different wires · power off</text><text x="115" y="136" text-anchor="middle" fill="#6b6b6b" font-size="10.5">wires out of the driver terminals</text></g>`;
-  o+=g('pwr',box(30,130,130,58,'Supply','12–24 V')+line('160,148 250,148','red')+line('160,176 250,176','blk')+pin(250,148,'V+')+pin(250,176,'Gnd'));
-  o+=g('can',box(30,226,130,58,'CANable','USB ↔ CAN')+line('160,244 250,244','yel')+line('160,272 250,272','grn')+pin(250,244,'CAN H')+pin(250,272,'CAN L'));
-  o+=g('r120',chip(52,292,'120R jumper')+`<polyline points="212,244 212,250 206,253 218,257 206,261 218,265 212,268 212,272" fill="none" stroke="#1a1a1a" stroke-width="2"/><text x="200" y="302" text-anchor="middle" fill="#6b6b6b" font-size="10.5">120 Ω, bench only</text>`);
-  const L=is42?[['En','limit 1 (home)'],['Dir','limit 2'],['COM',''],['+5V',''],['GND','']]:[['IN_1','home'],['IN_2','other limit'],['+5V',''],['GND','']];
-  const ys=L.map((_,j)=>150+j*34);
-  let pins=L.map((p,j)=>pin(510,ys[j],p[0],'end')).join('');
-  o+=pins;
-  const y5=ys[L.findIndex(p=>p[0]==='+5V')], yg=ys[L.findIndex(p=>p[0]==='GND')];
-  o+=g('lim',line(`510,${ys[0]} 600,${ys[0]} 600,150 620,150`,'blu')+line(`510,${ys[1]} 585,${ys[1]} 585,240 620,240`,'blu')+
-    `<text x="545" y="${ys[0]-8}" fill="#1a1a1a" font-size="10.5">${L[0][1]}</text>`);
-  o+=g('sensor',box(620,128,120,50,'Sensor 1','home','#ffffff','#1a1a1a')+box(620,218,120,50,'Sensor 2','if 2 boards','#ffffff','#1a1a1a')+
-    line(`510,${y5} 570,${y5} 570,290 700,290 700,268`,'red',2)+line('700,290 712,290 712,178 700,178','red',2,false)+
-    line(`510,${yg} 556,${yg} 556,305 725,305 725,268`,'blk',2)+line('725,305 735,305 735,190 725,190 725,178','blk',2,false)+
-    `<text x="750" y="324" text-anchor="end" fill="#c62828" font-size="10.5">5 V from the driver, never 24 V</text>`);
-  if(is42){const yc=ys[2]; o+=g('com',`<path class="flow" d="M520 ${yc} C 548 ${yc}, 548 ${y5}, 520 ${y5}" fill="none" stroke="#e07a00" stroke-width="3.5"/><text x="530" y="${yc+20}" fill="#e07a00" font-size="10.5" font-weight="700"></text>`+chip(410,262,'COM jumper → +5V'));}
-  else o+=g('dip',`<rect x="320" y="282" width="120" height="44" rx="6" fill="#ffffff" stroke="#1a1a1a"/>`+[1,2,3].map(n=>{const x=325+(n-1)*38,on=n>1;return `<rect x="${x+8}" y="290" width="16" height="22" rx="2" fill="#ffffff" stroke="#1a1a1a"/><rect x="${x+10}" y="${on?292:302}" width="12" height="9" fill="${on?'#1a1a1a':'#d0d0d0'}"/><text x="${x+16}" y="322" text-anchor="middle" fill="#1a1a1a" font-size="10">${n} ${on?'ON':'OFF'}</text>`}).join('')+`<text x="380" y="276" text-anchor="middle" fill="#6b6b6b" font-size="10.5">DIP switches</text>`);
-  o+=`<text x="380" y="392" text-anchor="middle" fill="#6b6b6b" font-size="11.5">Schematic, not the board layout. Your terminal order can differ: follow the labels printed on the board.</text>`;
-  return `<svg class="wd" viewBox="0 0 760 405" xmlns="http://www.w3.org/2000/svg">${o}</svg>`;
+  const BX0=290,BX1=560,BY0=120,BY1=380;
+  const pin=(x,y,t,side)=>`<rect x="${x-5}" y="${y-5}" width="10" height="10" fill="#1a1a1a"/>`+
+    (side==='T'?`<text x="${x}" y="${y+22}" text-anchor="middle" fill="#1a1a1a" font-size="12">${t}</text>`
+     :`<text x="${side==='R'?x-10:x+10}" y="${y+4}" text-anchor="${side==='R'?'end':'start'}" fill="#1a1a1a" font-size="11.5">${t}</text>`);
+  const dot=(x,y,c)=>`<circle cx="${x}" cy="${y}" r="3.5" fill="${COL[c]||c}"/>`;
+  const sbox=(x,y,t,sub)=>box(x,y,120,62,t,sub,'#ffffff','#1a1a1a');
+  let o=`<rect x="${BX0}" y="${BY0}" width="${BX1-BX0}" height="${BY1-BY0}" rx="12" fill="#ffffff" stroke="#1a1a1a"/>
+    <text x="425" y="200" text-anchor="middle" fill="#1a1a1a" font-size="17" font-weight="800">MKS SERVO${is42?'42D':'57D'}</text>
+    <text x="425" y="218" text-anchor="middle" fill="#6b6b6b" font-size="11">screen side up, as you hold it</text>
+    <rect x="385" y="262" width="80" height="44" rx="3" fill="#e9e9e9" stroke="#1a1a1a"/><text x="425" y="289" text-anchor="middle" fill="#6b6b6b" font-size="10.5">screen</text>`+
+    ['Next','Enter','Menu'].map((t,k)=>`<rect x="${372+k*40}" y="${BY1-34}" width="26" height="16" rx="3" fill="#ffffff" stroke="#1a1a1a"/><text x="${385+k*40}" y="${BY1-40}" text-anchor="middle" fill="#6b6b6b" font-size="9">${t}</text>`).join('');
+  // motor plug, top edge: A+ A- B+ B- left to right
+  const MX=[380,405,445,470];
+  o+=MX.map((x,k)=>pin(x,BY0+8,['A+','A−','B+','B−'][k],'T')).join('');
+  const mw=[[405,70,COL.grn],[415,73,COL.blk],[435,73,COL.blu],[445,70,COL.red]];
+  o+=g('coil',`<circle cx="425" cy="44" r="28" fill="#ffffff" stroke="#1a1a1a"/><text x="425" y="48" text-anchor="middle" fill="#1a1a1a" font-size="12" font-weight="700">motor</text>`+
+    (lit.has('meter')?mw.map(([x,y,c],k)=>{const ex=x+(MX[k]-x)*.55,ey=y+(BY0+3-y)*.55;return line(`${x},${y} ${ex},${ey}`,c,3)+`<circle cx="${ex}" cy="${ey}" r="3" fill="#ffffff" stroke="#1a1a1a"/>`}).join('')
+      :mw.map(([x,y,c],k)=>line(`${x},${y} ${MX[k]},${BY0+3}`,c,3)).join(''))+
+    `<text x="300" y="${lit.has('meter')?100:66}" fill="#7e3fbf" font-size="11" font-weight="700">coil 1</text><text x="300" y="${lit.has('meter')?114:80}" fill="#1a1a1a" font-size="10.5">green + black</text>`+
+    `<text x="482" y="66" fill="#7e3fbf" font-size="11" font-weight="700">coil 2</text><text x="482" y="80" fill="#1a1a1a" font-size="10.5">blue + red</text>`);
+  if(lit.has('meter')) o+=`<g class="st-now">${box(40,14,170,62,'Meter on Ω','reads a few ohms = one coil')}${line('210,36 405,86','#d62828',2.5)}${line('210,56 418,88','#1a1a1a',2.5)}<circle cx="405" cy="86" r="4" fill="#d62828"/><circle cx="418" cy="88" r="4" fill="#1a1a1a"/><text x="125" y="96" text-anchor="middle" fill="#1a1a1a" font-size="10.5">red probe → green wire tip</text><text x="125" y="110" text-anchor="middle" fill="#1a1a1a" font-size="10.5">black probe → black wire tip</text><text x="125" y="124" text-anchor="middle" fill="#6b6b6b" font-size="10.5">2 different wires · power off</text><text x="125" y="138" text-anchor="middle" fill="#6b6b6b" font-size="10.5">wires out of the driver terminals</text></g>`;
+  if(!is42){
+    // 57D. Right side, top to bottom: V+ Gnd Com En Stp Dir CAN H CAN L. Left side: sensor port.
+    const R=[['V+',160],['Gnd',185],['Com',210],['En',235],['Stp',260],['Dir',285],['CAN H',315],['CAN L',340]];
+    o+=R.map(([t,y])=>pin(BX1,y,t,'R')).join('');
+    const L=[['+5V',165],['GND',195],['IN_1',225],['IN_2',255]];
+    o+=L.map(([t,y])=>pin(BX0,y,t,'L')).join('');
+    o+=g('pwr',box(650,140,140,58,'Supply','12–24 V')+line(`650,160 ${BX1},160`,'red')+line(`650,185 ${BX1},185`,'blk'));
+    o+=g('can',box(650,300,140,58,'CANable','USB ↔ CAN')+line(`650,315 ${BX1},315`,'yel')+line(`650,340 ${BX1},340`,'grn'));
+    o+=g('r120',chip(668,364,'120R jumper')+`<polyline points="600,315 600,320 594,323 606,327 594,331 606,335 600,338 600,340" fill="none" stroke="#1a1a1a" stroke-width="2"/><text x="600" y="396" text-anchor="middle" fill="#6b6b6b" font-size="10.5">120 Ω, bench only</text>`);
+    o+=g('sensor',sbox(40,140,'Sensor 1','home')+sbox(40,240,'Sensor 2','if 2 boards')+
+      line(`${BX0},165 210,165 210,150 160,150`,'red',2)+line('210,165 210,250 160,250','red',2,false)+
+      line(`${BX0},195 225,195 225,170 160,170`,'blk',2)+line('225,195 225,270 160,270','blk',2,false)+dot(210,165,'red')+dot(225,195,'blk')+
+      `<text x="100" y="330" text-anchor="middle" fill="#c62828" font-size="10.5">5 V from the driver, never 24 V</text>`);
+    o+=g('lim',line(`${BX0},225 245,225 245,190 160,190`,'blu')+line(`${BX0},255 245,255 245,290 160,290`,'blu'));
+    o+=g('dip',`<rect x="303" y="306" width="70" height="40" rx="5" fill="#ffffff" stroke="#1a1a1a"/>`+[1,2,3].map(n=>{const x=307+(n-1)*22,on=n>1;return `<rect x="${x+2}" y="312" width="14" height="18" rx="2" fill="#ffffff" stroke="#1a1a1a"/><rect x="${x+4}" y="${on?314:322}" width="10" height="7" fill="${on?'#1a1a1a':'#d0d0d0'}"/><text x="${x+9}" y="341" text-anchor="middle" fill="#1a1a1a" font-size="8.5">${n} ${on?'ON':'OFF'}</text>`}).join('')+`<text x="338" y="300" text-anchor="middle" fill="#6b6b6b" font-size="10">DIP switches</text>`);
+  } else {
+    // 42D. Left side, top to bottom: 5V GND IN CAN L CAN H. Right side: V+ GND COM En STP DIR.
+    const L=[['5V',165],['GND',190],['IN',215],['CAN L',290],['CAN H',315]];
+    o+=L.map(([t,y])=>pin(BX0,y,t,'L')).join('');
+    const R=[['V+',160],['GND',185],['COM',210],['En',235],['STP',260],['DIR',285]];
+    o+=R.map(([t,y])=>pin(BX1,y,t,'R')).join('');
+    o+=g('pwr',box(650,130,140,58,'Supply','12–24 V')+line(`650,160 ${BX1},160`,'red')+line(`650,185 ${BX1},185`,'blk'));
+    o+=g('can',box(40,280,140,58,'CANable','USB ↔ CAN')+line(`180,315 ${BX0},315`,'yel')+line(`180,290 ${BX0},290`,'grn'));
+    o+=g('r120',chip(58,344,'120R jumper')+`<polyline points="235,290 235,293 229,296 241,300 229,304 241,308 235,311 235,315" fill="none" stroke="#1a1a1a" stroke-width="2"/><text x="235" y="380" text-anchor="middle" fill="#6b6b6b" font-size="10.5">120 Ω, bench only</text>`);
+    o+=g('sensor',sbox(650,222,'Sensor 1','home')+sbox(650,312,'Sensor 2','if 2 boards')+
+      line(`${BX0},165 250,165 250,400 620,400 620,232 650,232`,'red',2)+line('620,322 650,322','red',2,false)+dot(620,322,'red')+
+      line(`${BX0},190 265,190 265,412 632,412 632,250 650,250`,'blk',2)+line('632,340 650,340','blk',2,false)+dot(632,340,'blk')+
+      `<text x="720" y="398" text-anchor="middle" fill="#c62828" font-size="10.5">5 V from the driver, never 24 V</text>`);
+    o+=g('lim',line(`${BX1},235 590,235 590,268 650,268`,'blu')+line(`${BX1},285 580,285 580,358 650,358`,'blu'));
+    o+=g('com',`<path class="flow" d="M${BX1} 210 L 608 210 L 608 400" fill="none" stroke="#e07a00" stroke-width="3.5"/>`+dot(608,400,'#e07a00')+chip(574,104,'COM jumper → 5V'));
+  }
+  o+=`<text x="425" y="445" text-anchor="middle" fill="#6b6b6b" font-size="11.5">Follow the labels printed on your board.</text>`;
+  return `<svg class="wd" viewBox="0 0 830 455" xmlns="http://www.w3.org/2000/svg">${o}</svg>`;
 }
 
 function gripSVG(s){
