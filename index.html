@@ -536,12 +536,56 @@ const strip=h=>h.replace(/<[^>]+>/g,'');
 function prHTML(i,cat){const p=P[i],c=pr(i,'cause');return `<details class="pr"><summary>${pr(i,'problem')}${cat?`<small>${esc(p.cat)}</small>`:''}</summary><div class="fx">${c&&LV!==0?`<p><span class="lbl">Cause</span>${c}</p>`:''}<p><span class="lbl">Fix</span>${pr(i,'fix')}</p></div></details>`}
 
 /* ---------- visuals ---------- */
+
+function xhomeSVG(){
+  // How the X home sensor works: side cut view + animated bottom view (the nut turns, the magnet passes the fixed sensor)
+  const T=(x,y,t,c='#1a1a1a',sz=13,b=0,a='start')=>`<text x="${x}" y="${y}" fill="${c}" font-size="${sz}" text-anchor="${a}" ${b?'font-weight="700"':''}>${t}</text>`;
+  const N='#d62828', S='#1d6fd8', NUT='#f2b766', FIX='#c9ced6';
+  let o='';
+  // ---- left: side view, cut in half
+  o+=T(30,28,'Side view (cut in half)','#1a1a1a',15,1);
+  o+=`<path d="M40 60 L40 360 L470 360 L470 60" fill="none" stroke="#8a8a8a" stroke-width="10"/>`+T(46,384,'base (stays still)','#6b6b6b',12);
+  o+=`<rect x="160" y="110" width="130" height="150" fill="${FIX}" stroke="#1a1a1a"/>`+T(166,180,'bearing','#444',11)+T(166,194,'hub','#444',11)+T(166,208,'(still)','#666',10);
+  o+=`<rect x="140" y="62" width="170" height="34" rx="4" fill="#e8e8e8" stroke="#1a1a1a"/>`+[...Array(14)].map((_,i)=>`<line x1="${146+i*12}" y1="62" x2="${146+i*12}" y2="70" stroke="#1a1a1a"/>`).join('')+T(225,84,'X pulley (turns)','#1a1a1a',12,1,'middle');
+  o+=`<rect x="216" y="96" width="18" height="214" fill="#9aa3ad" stroke="#1a1a1a"/>`;
+  // clamp ring + bracket (fixed) with the sensor
+  o+=`<rect x="150" y="262" width="150" height="20" fill="#7fbf95" stroke="#1a1a1a"/>`+`<path d="M300 262 h50 v100 h-14 v-86 h-36 z" fill="#7fbf95" stroke="#1a1a1a"/>`;
+  o+=`<rect x="318" y="298" width="10" height="44" fill="#2a7d4f" stroke="#1a1a1a"/><circle cx="314" cy="320" r="4" fill="#111"/>`;
+  o+=T(366,296,'sensor','#1d6a40',13,1)+T(366,312,'on X limit','#1d6a40',12)+T(366,326,'holder 3','#1d6a40',12)+T(366,342,'(stays still)','#1d6a40',11);
+  // X pulley nut (turns) with the magnet in its side
+  o+=`<rect x="170" y="296" width="110" height="44" rx="6" fill="${NUT}" stroke="#1a1a1a"/>`+T(205,323,'X pulley nut','#1a1a1a',12,1,'middle');
+  o+=`<rect x="266" y="306" width="14" height="12" fill="${N}" stroke="#1a1a1a"/><rect x="266" y="318" width="14" height="12" fill="${S}" stroke="#1a1a1a"/>`;
+  o+=`<path d="M288 318 L310 318" stroke="#e07a00" stroke-width="3" stroke-dasharray="4 3"/>`;
+  o+=T(120,404,'magnet in the nut, home face toward the sensor','#b5481c',12,1);
+  o+=`<path d="M170 352 q55 22 110 0" fill="none" stroke="#1a1a1a" stroke-width="2" marker-end="url(#ar)"/>`+T(225,374,'turns when X turns','#1a1a1a',11,0,'middle');
+  // ---- right: bottom view, animated
+  const cx=680, cy=215;
+  o+=T(520,28,'Bottom view (looking up)','#1a1a1a',15,1);
+  o+=`<circle cx="${cx}" cy="${cy}" r="120" fill="none" stroke="#8a8a8a" stroke-width="8"/><circle cx="${cx}" cy="${cy}" r="92" fill="#7fbf95" fill-opacity=".35" stroke="#2a7d4f"/>`;
+  o+=T(cx,cy-100,'clamp ring (stays still)','#1d6a40',11,0,'middle');
+  o+=`<g><animateTransform attributeName="transform" type="rotate" from="0 ${cx} ${cy}" to="360 ${cx} ${cy}" dur="6s" repeatCount="indefinite"/>`+
+     `<circle cx="${cx}" cy="${cy}" r="62" fill="${NUT}" stroke="#1a1a1a"/><circle cx="${cx}" cy="${cy}" r="14" fill="#9aa3ad" stroke="#1a1a1a"/>`+
+     `<rect x="${cx+48}" y="${cy-8}" width="14" height="16" fill="${N}" stroke="#1a1a1a"/></g>`;
+  o+=`<line x1="${cx-62}" y1="${cy+10}" x2="${cx-150}" y2="${cy+60}" stroke="#1a1a1a"/>`+T(cx-155,cy+75,'X pulley nut','#1a1a1a',12,1,'end')+T(cx-155,cy+90,'(turns)','#1a1a1a',11,0,'end');
+  // the fixed sensor at the right, with an LED that lights when the magnet passes
+  o+=`<rect x="${cx+70}" y="${cy-26}" width="16" height="52" fill="#2a7d4f" stroke="#1a1a1a"/>`;
+  o+=`<circle cx="${cx+96}" cy="${cy}" r="9" fill="#2c333d" stroke="#1a1a1a"><animate attributeName="fill" values="#3cff7a;#2c333d;#3cff7a" keyTimes="0;0.05;0.95" calcMode="discrete" dur="6s" repeatCount="indefinite"/></circle>`;
+  o+=`<g opacity="0"><animate attributeName="opacity" values="1;0;1" keyTimes="0;0.05;0.95" calcMode="discrete" dur="6s" repeatCount="indefinite"/>`+
+     `<rect x="${cx+60}" y="${cy+40}" width="150" height="26" rx="6" fill="#1d6a40"/>`+T(cx+135,cy+58,'I1 ON = home','#fff',13,1,'middle')+`</g>`;
+  o+=T(cx+110,cy-36,'sensor','#1d6a40',13,1,'middle');
+  o+=`<path d="M${cx-90} ${cy+132} a140 140 0 0 0 180 0" fill="none" stroke="#1a1a1a" stroke-width="2" marker-end="url(#ar)"/>`+T(cx,cy+192,'the nut turns, the magnet passes the sensor','#1a1a1a',12,0,'middle');
+  const defs=`<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#1a1a1a"/></marker></defs>`;
+  return `<svg class="wd" viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg">${defs}${o}</svg>`;
+}
 function views(i){
   const s=S[i], v=[];
   if(s.bench) v.push(['bench','Close-up: '+(s.drv==='42D'?'42D':'57D')+' driver']);
   if(s.grip) v.push(['grip','Close-up: gripper']);
   if(s.ov&&s.ov.length) v.push(['ov',s.ov.includes('*')?'Whole plan':'Whole arm']);
+  const xh=(s.kind==='step'&&[8,9,12,13,147,148].includes(s.n))||s.key==='b-sensor'||s.key==='x-test';
+  if(xh&&(s.n===147||s.n===13)) v.unshift(['xhome','How it works']);
   if(s.img) v.push(['img',s.kind==='step'?'Step '+s.n:'Picture']);
+  if(xh&&!(s.n===147||s.n===13)) v.push(['xhome','How it works']);
   if(!(s.ov&&s.ov.length)&&i>=firstWire&&cum[i].size&&s.kind!=='step') v.push(['ov','Wiring so far']);
   return v;
 }
@@ -551,6 +595,7 @@ function visHTML(i,t){
   if(t==='ov') return `<div class="vbox sheet">${overviewSVG(i)}</div>${legend}`;
   if(t==='bench') return `<div class="vbox sheet">${benchSVG(s)}</div>${legend}`;
   if(t==='grip') return `<div class="vbox sheet">${gripSVG(s)}</div>${legend}`;
+  if(t==='xhome') return `<div class="vbox sheet">${xhomeSVG()}</div>`;
   return '';
 }
 const OFFICIAL='https://arctosrobotics.com/assembly-manual-0-2-9-beta/';
