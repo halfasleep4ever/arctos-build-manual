@@ -678,15 +678,47 @@ document.addEventListener('click',e=>{
   const ck=t.closest('[data-ck]'); if(ck){const k=ck.dataset.ck;pst.checks[k]=!pst.checks[k];save();ck.classList.toggle('ok',pst.checks[k]);$('input',ck).checked=pst.checks[k];e.preventDefault();return}
 });
 
+
+function wiresSVG(){
+  // which wire to use, and how to fit it in the small MKS screw terminals
+  const ins=(x,y,w,c)=>`<rect x="${x}" y="${y-9}" width="${w}" height="18" rx="9" fill="${c}" stroke="#1a1a1a"/>`;
+  const strands=(x,y)=>[...Array(9)].map((_,i)=>{const dy=(i-4)*1.9;return `<path d="M${x} ${y+dy*0.6} C ${x+18} ${y+dy*0.8}, ${x+30} ${y+dy*1.3}, ${x+44} ${y+dy*1.9}" fill="none" stroke="#c77b30" stroke-width="1.3"/>`}).join('');
+  const ok=(x,y)=>`<circle cx="${x}" cy="${y}" r="13" fill="#2e7d4f"/><path d="M${x-6} ${y} l4 5 l8 -10" fill="none" stroke="#fff" stroke-width="3"/>`;
+  const no=(x,y)=>`<circle cx="${x}" cy="${y}" r="13" fill="#c62828"/><path d="M${x-5} ${y-5} l10 10 M${x+5} ${y-5} l-10 10" stroke="#fff" stroke-width="3"/>`;
+  const T=(x,y,t,b=0,c='#1a1a1a',sz=13)=>`<text x="${x}" y="${y}" fill="${c}" font-size="${sz}" ${b?'font-weight="700"':''}>${t}</text>`;
+  let o='';
+  // row 1: the three kinds
+  o+=T(20,26,'Which wire?',1,'#1a1a1a',16);
+  // stranded
+  o+=ins(30,70,150,'#d62828')+strands(180,70)+ok(260,70)+T(30,105,'Stranded (many tiny strands)',1)+T(30,122,'Use it for everything in the arm.',0,'#2e7d4f',12)+T(30,138,'It bends without breaking.',0,'#6b6b6b',12);
+  // solid
+  o+=ins(330,70,150,'#1d6fd8')+`<rect x="480" y="66" width="44" height="8" rx="3" fill="#c77b30" stroke="#8a5a20"/>`+no(560,70)+T(330,105,'Solid (1 thick strand)',1)+T(330,122,'Not in the arm.',0,'#c62828',12)+T(330,138,'It snaps when a joint moves.',0,'#6b6b6b',12);
+  // jumper
+  o+=`<rect x="630" y="58" width="40" height="24" rx="3" fill="#1a1a1a"/><rect x="636" y="64" width="6" height="12" fill="#555"/>`+ins(670,70,120,'#e9b200')+ok(830,70)+T(630,105,'Jumper (Dupont) wire',1)+T(630,122,'OK for the limit sensors:',0,'#2e7d4f',12)+T(630,138,'the plug goes on the sensor pins.',0,'#6b6b6b',12);
+  // row 2: how to fit it
+  o+=`<line x1="20" y1="165" x2="880" y2="165" stroke="#d0d0d0"/>`+T(20,195,'Into the MKS screw terminals',1,'#1a1a1a',16);
+  // 1 strip
+  o+=T(30,228,'1. Strip 5 mm',1)+ins(30,262,110,'#d62828')+strands(140,262)+`<line x1="140" y1="285" x2="184" y2="285" stroke="#1a1a1a"/><text x="162" y="300" text-anchor="middle" fill="#1a1a1a" font-size="11">5 mm</text>`;
+  // 2 twist
+  o+=T(240,228,'2. Twist tight',1)+ins(240,262,110,'#d62828')+`<path d="M350 262 l6 -4 l6 8 l6 -8 l6 8 l6 -8 l6 8 l6 -4" fill="none" stroke="#c77b30" stroke-width="3.5"/>`;
+  // 3 terminal
+  o+=T(450,228,'3. In, then tighten',1)+`<rect x="560" y="240" width="60" height="44" rx="4" fill="#3fa66b" stroke="#1a1a1a"/><circle cx="590" cy="252" r="7" fill="#d9d9d9" stroke="#1a1a1a"/><path d="M585 252 h10" stroke="#1a1a1a" stroke-width="2"/><rect x="556" y="266" width="10" height="10" fill="#1a1a1a"/>`+ins(450,271,80,'#d62828')+`<path d="M530 271 h32" stroke="#c77b30" stroke-width="3.5"/>`+T(450,305,'Tug it gently: it must stay in.',0,'#6b6b6b',12);
+  // don'ts
+  o+=no(680,250)+T(700,255,'No solder on the end',1)+`<rect x="700" y="262" width="60" height="12" rx="6" fill="#d62828" stroke="#1a1a1a"/><ellipse cx="770" cy="268" rx="12" ry="6" fill="#b0b0b0" stroke="#777"/>`;
+  o+=no(680,300)+T(700,305,'No metal crimp tip (ferrule)',1)+`<rect x="700" y="312" width="60" height="12" rx="6" fill="#d62828" stroke="#1a1a1a"/><rect x="760" y="313" width="26" height="10" fill="#c0c0c0" stroke="#777"/>`;
+  o+=T(700,345,'They snap inside the small terminals.',0,'#6b6b6b',12);
+  return `<svg class="wd" viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg">${o}</svg>`;
+}
 /* ---------- wiring sheet ---------- */
 const planIdx=S.findIndex(s=>s.ov&&s.ov.includes('*'));
-const WST=[['ov','Whole arm'],['57D','57D driver (X, Y)'],['42D','42D driver (Z, A, B, C)'],['grip','Gripper'],['tbl','Motor table']];
+const WST=[['ov','Whole arm'],['57D','57D driver (X, Y)'],['42D','42D driver (Z, A, B, C)'],['grip','Gripper'],['wires','Wires'],['tbl','Motor table']];
 function openWs(k){
   document.body.classList.add('ws-open');
   $('#wsTabs').innerHTML=WST.map(([id,l])=>`<button data-wt="${id}" class="${id===k?'on':''}">${l}</button>`).join('');
   let o='';
   if(k==='ov') o=`<div class="vbox sheet">${overviewSVG(planIdx)}</div>${legend}<p>The four wires that run up the arm: <b>+V, GND, CAN H, CAN L</b>. Each driver takes power from a Wago at its joint and passes CAN on to the next one. The bus ends at the CANable (120R jumper) and at the gripper MCP2515 (J1).</p>`;
   else if(k==='57D'||k==='42D') o=`<div class="vbox sheet">${benchSVG({bench:[],drv:k})}</div>${legend}`+(k==='57D'?'<p>Limit sensors go on I1 (home) and I2, power from EVCC and EGND. Set <b>DIP switches 2 and 3 ON</b>. The sensors take 5 V from the driver, never 24 V.</p>':'<p>Limit sensors go on <b>En</b> (home) and <b>Dir</b>. Fit the <b>COM jumper to +5V</b>, then send the remap command for that axis (Z <code>03 9E 01 A2</code>, A <code>04 9E 01 A3</code>, B <code>05 9E 01 A4</code>, C <code>06 9E 01 A5</code>).</p>');
+  else if(k==='wires') o=`<div class="vbox sheet">${wiresSVG()}</div><div class="txt"><table><tr><th>Wire</th><th>Type</th><th>Size</th></tr><tr><td>+V and GND up the arm</td><td>Stranded</td><td>about 18 AWG (0.75–1 mm²)</td></tr><tr><td>CAN H and CAN L</td><td>Stranded, twisted together</td><td>22–24 AWG</td></tr><tr><td>Limit sensors</td><td>Jumper wires</td><td>as they come</td></tr><tr><td>Motor coils</td><td>The motor's own wires</td><td>–</td></tr></table></div>`;
   else if(k==='grip') o=`<div class="vbox sheet">${gripSVG({grip:[]})}</div>${legend}`;
   else { const b=S.find(s=>s.key==='b-intro'); o=`<div class="txt">${b?b.html.replace(/<ol>[\s\S]*$/,''):''}</div>`; }
   $('#wsBody').innerHTML=o;
