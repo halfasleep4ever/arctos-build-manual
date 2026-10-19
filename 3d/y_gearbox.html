@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Y Gearbox 3D</title>
+<style>
+  :root{--bg:#eeeeee;--ink:#1a1a1a;--mute:#6b6b6b;--line:#c9ced6;--card:#ffffff;--new:#e07a00}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif}
+  #view{position:fixed;inset:0 0 0 360px}
+  .panel{position:fixed;left:0;top:0;bottom:0;width:360px;overflow:auto;background:var(--card);border-right:1px solid var(--line);padding:14px 16px 90px}
+  h1{font-size:13px;letter-spacing:.18em;margin:0 0 12px;font-weight:700}
+  h1 span{font-weight:400;color:var(--mute);letter-spacing:.1em}
+  .steps{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+  .steps button{min-width:42px;padding:4px 7px}
+  .steps button.card{border-style:dashed;font-size:12px}
+  button{font:inherit;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:6px;padding:6px 10px;min-height:40px;cursor:pointer}
+  button.on{background:var(--ink);color:#fff}
+  button:focus-visible{outline:3px solid #1d6fd8;outline-offset:2px}
+  h2{font-size:20px;margin:6px 0 6px}
+  .kind{font-size:11px;letter-spacing:.14em;color:var(--mute);font-weight:700}
+  .spr{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;font-weight:600;margin:4px 0 10px}
+  .spr input{width:100%;accent-color:#1a1a1a;min-height:32px}
+  .txt{margin:0 0 10px}
+  .txt code{background:#f0f1f3;padding:0 3px;border-radius:3px}
+  .txt ol,.txt ul{margin:4px 0;padding-left:20px}
+  .txt table{border-collapse:collapse;margin:6px 0;font-size:13px}
+  .txt td,.txt th{border:1px solid var(--line);padding:3px 6px;text-align:left}
+  .txt .call{border-left:4px solid var(--new);background:#fff6ec;padding:6px 8px;margin:8px 0;border-radius:0 4px 4px 0}
+  .txt .chk{color:var(--mute);font-size:13px}
+  .lbl{font-size:11px;letter-spacing:.14em;color:var(--mute);font-weight:700;margin:14px 0 6px}
+  ul.pl{list-style:none;margin:0;padding:0}
+  ul.pl li{display:flex;align-items:center;gap:8px;padding:7px 6px;border-bottom:1px solid #eef0f3;min-height:40px}
+  ul.pl li[data-l],ul.pl li[data-w]{cursor:pointer}
+  ul.pl li[data-l]:hover,ul.pl li[data-w]:hover{background:#f5f6f8}
+  ul.pl li .sw{width:12px;height:12px;border-radius:3px;border:1px solid #111;flex:none}
+  ul.pl li .sw.w{height:5px;border-radius:3px;width:18px}
+  ul.pl li b{font-weight:600}
+  ul.pl li .n{margin-left:auto;font:12px ui-monospace,monospace;color:var(--mute)}
+  ul.pl li.new b{color:var(--new)}
+  ul.pl li.info{color:var(--mute)}
+  .bar{position:fixed;left:0;bottom:0;width:360px;background:#fff;border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:8px}
+  .bar button{flex:1}
+  #tip{position:fixed;pointer-events:none;background:#1a1a1a;color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;display:none;white-space:nowrap;z-index:5}
+  #iso{position:fixed;right:14px;top:14px;width:300px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:none;z-index:4}
+  #iso h3{margin:0 0 4px;font-size:17px}
+  #iso .m{color:var(--mute);font-size:13px}
+  #hint{position:fixed;right:14px;bottom:12px;color:var(--mute);font-size:12px}
+  /* ?embed=1: only the 3D view, for the Build Manual iframe */
+  body.embed .panel, body.embed .bar, body.embed #hint{display:none}
+  body.embed #view{inset:0}
+  #emb{display:none;position:fixed;left:10px;bottom:10px;right:10px;gap:10px;align-items:center;z-index:3}
+  body.embed #emb{display:flex}
+  #emb button{min-height:36px;padding:4px 10px}
+  #emb label{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.85);border-radius:6px;padding:4px 10px;font-weight:600;font-size:13px}
+  #emb input{width:140px;accent-color:#1a1a1a}
+  @media (max-width:760px){
+    #view{inset:0 0 46% 0}
+    .panel{top:54%;width:auto;right:0;border-right:0;border-top:1px solid var(--line)}
+    .bar{width:auto;right:0}
+    #iso{left:8px;right:8px;width:auto;top:8px}
+    #hint{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div class="panel">
+  <h1 id="h1"></h1>
+  <div class="steps" id="steps"></div>
+  <label class="spr">Spread apart <input type="range" id="spread" min="0" max="100" value="0" aria-label="Spread the parts apart"></label>
+  <div class="kind" id="st-kind"></div>
+  <h2 id="st-title"></h2>
+  <p class="txt" id="st-text"></p>
+  <div class="lbl">NEW IN THIS STEP</div><ul class="pl" id="pl-new"></ul>
+  <div class="lbl">ALREADY IN</div><ul class="pl" id="pl-old"></ul>
+</div>
+<div class="bar"><button id="prev">← Back</button><button id="play">▶ Replay</button><button id="next">Next →</button></div>
+<div id="iso"><h3 id="iso-name"></h3><div class="m" id="iso-meta"></div><div style="margin-top:10px;display:flex;gap:8px"><button id="iso-back">← Back to the step</button></div></div>
+<div id="tip"></div>
+<div id="emb"><button id="e-play">▶ Replay</button><label>Spread apart <input type="range" id="e-spread" min="0" max="100" value="0" aria-label="Spread the parts apart"></label></div>
+<div id="hint">Tap a piece or a wire for a close-up. Drag to turn, scroll to zoom.</div>
+<script src="y_gearbox_data.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+const D = window.ST, META = D.meta, STEPS = D.steps, $ = s => document.querySelector(s);
+const KIND = {printed:0xe9e9e6, bearing:0xb8bec6, pin:0xc9ced4, rod:0xb9bdc3, bolt:0x3a3d42, nut:0x55595f, screw:0x3a3d42, washer:0x9aa0a8,
+              magnet:0x8c96a3, pulley:0xa9aeb5, belt:0x2b2b2b, motor:0x45484e, driver:0x2f3a4a, sensor:0x1f5fa8, other:0xd0d0d0};
+$('#h1').innerHTML = META.h1;
+
+const view = $('#view');
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xeeeeee);
+const cam = new THREE.PerspectiveCamera(32, 1, 0.5, 5000); cam.up.set(0,0,1);
+const ren = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+ren.setPixelRatio(Math.min(devicePixelRatio,2)); view.appendChild(ren.domElement);
+const ctl = new OrbitControls(cam, ren.domElement); ctl.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 1.5));
+const s1 = new THREE.DirectionalLight(0xffffff, 1.7); s1.position.set(1,-0.8,1.6); scene.add(s1); scene.add(s1.target);
+const s2 = new THREE.DirectionalLight(0xffffff, 0.6); s2.position.set(-1,1,0.4); scene.add(s2);
+function size(){const r=view.getBoundingClientRect();ren.setSize(r.width,r.height);cam.aspect=r.width/r.height;cam.updateProjectionMatrix()}
+addEventListener('resize',size); size();
+const V3 = a => new THREE.Vector3(a[0],a[1],a[2]);
+
+// ---- part meshes: positions int16 in 0.01 mm around the part centre
+const dec = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0)).buffer;
+const root = new THREE.Group(); scene.add(root);
+const all = [], ghosts = [];
+for (const p of D.parts){
+  const q = new Int16Array(dec(p.p)), pos = new Float32Array(q.length);
+  for (let i=0;i<q.length;i++) pos[i] = q[i]*0.01;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setIndex(new THREE.BufferAttribute(p.i32 ? new Uint32Array(dec(p.i)) : new Uint16Array(dec(p.i)),1)); g.computeVertexNormals();
+  const base = new THREE.Color(p.color ? parseInt(p.color,16) : (KIND[p.kind]??KIND.other));
+  const shiny = !['printed','belt','driver','sensor'].includes(p.kind);
+  const mat = new THREE.MeshStandardMaterial({color:base, roughness:shiny?.35:.8, metalness:shiny?.55:0, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1});
+  if (p.ghost){ mat.transparent = true; mat.opacity = .22; mat.depthWrite = false; }
+  const m = new THREE.Mesh(g, mat);
+  m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), new THREE.LineBasicMaterial({color:0x1a1a1a, transparent:true, opacity:p.ghost?.12:.5})));
+  const home = V3(p.c); m.position.copy(home);
+  Object.assign(m.userData, {p, home, base});
+  root.add(m); (p.ghost ? ghosts : all).push(m);
+}
+// ---- wires: tubes along smooth paths; they grow from end to end in their step and move with the piece they hang on
+const WSEG = 160;
+function samples(flat){ const pts=[]; for(let i=0;i<flat.length;i+=3) pts.push(new THREE.Vector3(flat[i],flat[i+1],flat[i+2]));
+  return new THREE.CatmullRomCurve3(pts,false,'centripetal').getSpacedPoints(WSEG); }
+function tube(sm, r){ return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sm,false,'catmullrom',0), WSEG, r, 8, false); }
+for (const w of (D.wires||[])){
+  w.kind = 'wire'; w.sm = w.paths.map(pa=>({s:pa.s, pts:samples(pa.pts)}));
+  const base = new THREE.Color(parseInt(w.color,16));
+  const mat = new THREE.MeshStandardMaterial({color:base, roughness:.55, metalness:0, transparent:true, opacity:1});
+  const m = new THREE.Mesh(tube(w.sm[0].pts, w.r), mat);
+  Object.assign(m.userData, {p:w, home:new THREE.Vector3(), base, wire:true, path:0});
+  root.add(m); all.push(m);
+}
+const isW = m=>m.userData.wire===true;
+const count = {}, stepsOf = {};
+for (const m of all){ const p=m.userData.p; count[p.label]=(count[p.label]||0)+1; (stepsOf[p.label] ||= new Set()).add(p.s); }
+const sname = s => s<0 ? META.base_steps : (STEPS[s].kind==='card' ? '“'+STEPS[s].title+'”' : STEPS[s].n);
+
+// ---- steps
+let cur = 0, anim = null, iso = null;
+const sb = $('#steps');
+STEPS.forEach((s,i)=>{const b=document.createElement('button');b.textContent=s.btn;if(s.kind==='card')b.className='card';b.setAttribute('aria-label',(s.kind==='card'?'Card: ':'Step ')+s.title);b.title=s.title;b.onclick=()=>go(i);sb.appendChild(b)});
+const hex = c => '#'+c.getHex().toString(16).padStart(6,'0');
+function listHTML(ms, isNew){
+  const g = {}; for (const m of ms){const l=m.userData.p.label;(g[l] ||= []).push(m)}
+  return Object.entries(g).map(([l,a])=>{ const w=isW(a[0]);
+    return `<li class="${isNew?'new':''}" ${w?'data-w':'data-l'}="${l}"><span class="sw${w?' w':''}" style="background:${hex(a[0].userData.base)}"></span><b>${l}</b><span class="n">${w?'wire':'×'+a.length}</span></li>`}).join('');
+}
+function fit(objs, pad=1.2){
+  const b = new THREE.Box3(); objs.forEach(o=>b.expandByObject(o));
+  const c = b.getCenter(new THREE.Vector3()), r = b.getSize(new THREE.Vector3()).length()/2;
+  const d = r*pad/Math.sin(THREE.MathUtils.degToRad(cam.fov/2));
+  const dir = cam.position.clone().sub(ctl.target).normalize();
+  if (!isFinite(dir.x) || dir.length()<.5 || fit.view) dir.set(...(fit.view||META.view||[.75,-.55,.45])).normalize();
+  fit.view = null;
+  ctl.target.copy(c); cam.position.copy(c).addScaledVector(dir, d); cam.near=d/100; cam.far=d*20; cam.updateProjectionMatrix();
+}
+const qs = new URLSearchParams(location.search), FREEZE = qs.get('t')!=null ? +qs.get('t') : null;  // ?t=ms freezes the animation (tests)
+const SC = V3(META.spread.c), SW = V3(META.spread.w);
+let spread = 0;
+// a piece built beside the arm moves in at each offs[k].ms; before it, it rests at home + offs[k].off
+const restOff = (p,n)=>{ for (const e of (p.offs||[])) if (n < e.ms) return e.off; return null; };
+const mvAt = (p,n)=>(p.offs||[]).find(e=>e.ms===n);
+const on = (m,n)=>m.userData.p.s<=n && !(m.userData.p.u!=null && n>=m.userData.p.u);
+// where a piece rests at step n: its build spot beside the arm until it moves in, then home
+function rest(m, n){
+  const p = m.userData.p, v = m.userData.home.clone();
+  const o = restOff(p, n); if (o) v.add(V3(o));
+  return v;
+}
+function pathAt(m, n){ const p=m.userData.p; let k=0; p.sm.forEach((pa,i)=>{ if (pa.s<=n) k=i; }); return k; }
+function setPath(m, pts){ m.geometry.dispose(); m.geometry = tube(pts, m.userData.p.r); }
+// spread apart: everything moves out from the middle of the arm, fasteners also back out of their holes
+function spreadOff(m){
+  if (!spread || isW(m)) return new THREE.Vector3();
+  const p = m.userData.p, v = m.userData.home.clone().sub(SC).multiply(SW).multiplyScalar(1.4*spread);
+  return v.addScaledVector(V3(p.dir||[0,0,0]), (p.kind==='printed'?0:(p.dist||60))*0.9*spread);
+}
+function place(){
+  if (iso) return;
+  const n = cur;
+  for (const m of all){
+    if (!m.visible) continue;
+    const a = m.userData.a;
+    m.position.copy(a ? a.pos : rest(m, n)).add(spreadOff(m));
+    if (isW(m)) m.material.opacity = spread ? .35 : 1;
+  }
+  for (const m of ghosts) m.visible = !spread;
+}
+function look(n){
+  all.forEach(m=>{ const p=m.userData.p;
+    m.material.color.copy(m.userData.base);
+    m.material.emissive.set(p.s===n ? (isW(m) ? m.userData.base.clone().multiplyScalar(.45) : 0x8a4200) : (mvAt(p,n) ? 0x5a2c00 : 0)); });
+}
+function go(i, play=true){
+  cur = Math.max(0, Math.min(STEPS.length-1, i)); closeIso();
+  const s = STEPS[cur], n = cur, ordr = (a,b)=>(a.userData.p.ord-b.userData.p.ord)||(a.userData.p.sub-b.userData.p.sub);
+  [...sb.children].forEach((b,k)=>b.classList.toggle('on',k===cur));
+  $('#st-kind').textContent = s.kind==='card' ? 'CARD · '+s.card : 'MANUAL STEP '+s.n;
+  $('#st-title').textContent = s.title; $('#st-text').innerHTML = s.text;
+  const vis = all.filter(m=>on(m,n)), nw = vis.filter(m=>m.userData.p.s===n).sort(ordr);
+  const mv = vis.filter(m=>mvAt(m.userData.p,n));
+  all.forEach(m=>{m.visible = on(m,n); m.userData.a = null; m.position.copy(rest(m,n)); m.quaternion.identity();
+    if (isW(m) && m.visible){ const k=pathAt(m,n); if (k!==m.userData.path){ setPath(m, m.userData.p.sm[k].pts); m.userData.path=k; } m.geometry.setDrawRange(0, Infinity); } });
+  look(n);
+  let lst = nw.length ? listHTML(nw,true) : '';
+  if (mv.length) lst += [...new Set(mv.map(m=>mvAt(m.userData.p,n).mgrp))].filter(Boolean).map(g=>`<li class="info">Slides in: ${g}</li>`).join('');
+  const rer = vis.filter(m=>isW(m) && m.userData.p.s<n && m.userData.p.sm.some(pa=>pa.s===n));
+  if (rer.length) lst += `<li class="info">Moved to a new path: ${[...new Set(rer.map(m=>m.userData.p.group||m.userData.p.label))].join(', ')}</li>`;
+  const gone = all.filter(m=>m.userData.p.u===n);
+  if (gone.length) lst += [...new Set(gone.map(m=>isW(m) ? `<li class="info">Uncoiled and run on: ${m.userData.p.label}</li>` : `<li class="info">Take out: ${m.userData.p.label}</li>`))].join('');
+  $('#pl-new').innerHTML = lst || '<li class="info">Nothing new: look at the result.</li>';
+  const old = vis.filter(m=>m.userData.p.s<n);
+  const nb = old.filter(m=>m.userData.p.s<0).length;
+  $('#pl-old').innerHTML = (nb ? `<li class="info"><b>${META.base_name}</b><span class="n">${nb} parts</span></li>` : '') + listHTML(old.filter(m=>m.userData.p.s>=0),false);
+  document.querySelectorAll('ul.pl li[data-l]').forEach(li=>li.onclick=()=>openIso(li.dataset.l));
+  document.querySelectorAll('ul.pl li[data-w]').forEach(li=>li.onclick=()=>openIso(li.dataset.w));
+  // frame the step: also the build spots that pieces slide in from
+  if (s.view && !qs.get('view')) fit.view = s.view;
+  const fr = vis.filter(m=>!isW(m) || m.userData.p.s===n);
+  if (mv.length){ mv.forEach(m=>m.position.copy(m.userData.home).add(V3(mvAt(m.userData.p,n).off))); fit(fr); mv.forEach(m=>m.position.copy(rest(m,n))); }
+  else { place(); fit(fr.length?fr:all); }
+  if (!EMBED) try{localStorage.setItem(META.key,cur)}catch(e){}
+  if (play) playStep();
+}
+// install order: groups (same ord) one after another, the pieces of a group 0-500 ms apart, each 2.4 s.
+// New parts slide in along their fit direction and bolts turn; a finished sub-assembly slides in as one piece;
+// new wires grow from end to end; a wire that gets a new path bends over to it.
+function playStep(){
+  const n = cur;
+  const items = all.filter(m=>on(m,n) && (m.userData.p.s===n || mvAt(m.userData.p,n) || (isW(m) && m.userData.p.sm.some((pa,k)=>k>0 && pa.s===n))));
+  if (!items.length) return;
+  const key = m=>{const p=m.userData.p, e=mvAt(p,n); return e ? e.mord : (p.s===n ? p.ord : (p.rord??0))};
+  items.sort((a,b)=>(key(a)-key(b))||((a.userData.p.sub||0)-(b.userData.p.sub||0)));
+  const dur = 2400, t0 = performance.now();
+  let start = 0, k = 0;
+  while (k < items.length){
+    const o = key(items[k]), grp = [];
+    while (k < items.length && key(items[k]) === o) grp.push(items[k++]);
+    const together = grp.every(m=>mvAt(m.userData.p,n) || m.userData.p.s!==n);
+    const gap = together ? 0 : Math.min(500, 3000/grp.length);
+    grp.forEach((m,j)=>{
+      const p = m.userData.p, to = rest(m,n), mvE = mvAt(p,n), moving = !!mvE, w = isW(m);
+      const from = moving ? m.userData.home.clone().add(V3(mvE.off)) : (w ? to.clone() : to.clone().addScaledVector(V3(p.dir), p.dist||60));
+      const a = {t0:start + j*gap, from, to, pos:from.clone(), spin:(moving||w)?0:(p.spin||0)};
+      if (moving && mvE.via) a.via = m.userData.home.clone().add(V3(mvE.via));
+      if (w && p.s===n) a.grow = true;
+      if (w && p.s<n){ const kk = pathAt(m,n); if (kk>0 && p.sm[kk].s===n){ if (p.paths[kk].grow) a.grow = true; else a.morph=[p.sm[kk-1].pts, p.sm[kk].pts]; } }
+      m.userData.a = a;
+    });
+    start += (grp.length-1)*gap + dur + 250;
+  }
+  anim = ()=>{
+    const t = FREEZE!=null ? FREEZE : performance.now()-t0; let done = FREEZE==null;
+    for (const m of items){
+      const a = m.userData.a; if (!a) continue;
+      const u = Math.min(1, Math.max(0,(t-a.t0)/dur)), e = u<.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2;
+      if (u<1) done = false;
+      if (a.via) { if (e<.5) a.pos.lerpVectors(a.from, a.via, e*2); else a.pos.lerpVectors(a.via, a.to, e*2-1); }
+      else a.pos.lerpVectors(a.from, a.to, e);
+      if (a.spin) m.quaternion.setFromAxisAngle(V3(m.userData.p.ax), (1-e)*Math.PI*2*a.spin);
+      if (a.grow){ const seg = Math.round(e*WSEG); m.geometry.setDrawRange(0, seg*8*6); m.visible = u>0; }
+      else if (a.morph){ if (a.lu!==u){ a.lu=u; setPath(m, a.morph[0].map((v,i)=>v.clone().lerp(a.morph[1][i], e))); } }
+      else m.visible = u>0 || !!mvAt(m.userData.p,n);
+    }
+    if (done && FREEZE==null){ items.forEach(m=>{m.userData.a=null; m.quaternion.identity(); if(isW(m)) m.geometry.setDrawRange(0,Infinity)}); anim = null; }
+  };
+}
+$('#play').onclick=()=>go(cur);
+$('#spread').oninput=e=>{spread=e.target.value/100};
+$('#prev').onclick=()=>go(cur-1); $('#next').onclick=()=>go(cur+1);
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.key==='ArrowRight')go(cur+1);if(e.key==='ArrowLeft')go(cur-1);if(e.key==='Escape')closeIso()});
+
+// ---- close-up of one piece or wire
+let saved = null;
+function openIso(label, mesh){
+  const ms = all.filter(m=>m.userData.p.label===label && on(m,cur)); const one = mesh || ms[0] || all.find(m=>m.userData.p.label===label);
+  if (!saved) saved = {pos:cam.position.clone(), tgt:ctl.target.clone()};
+  iso = one; anim = null;
+  all.forEach(m=>{m.visible = m===one; m.position.copy(m.userData.home); m.quaternion.identity(); if(isW(m)){ m.geometry.setDrawRange(0,Infinity); m.material.opacity=1; }});
+  ghosts.forEach(m=>m.visible=false);
+  one.material.color.copy(one.userData.base); one.material.emissive.set(0);
+  const p = one.userData.p, st = [...stepsOf[label]].sort((a,b)=>a-b).map(sname);
+  $('#iso-name').textContent = label;
+  $('#iso-meta').innerHTML = (isW(one) ? `Wire. Fitted at ${st.join(', ')}.` : `You need <b>${count[label]}</b>. Used in ${st.length>1?'':'step '}${st.join(', ')}.`)+(p.note?`<br>${p.note}`:'');
+  $('#iso').style.display = 'block'; fit([one], 1.6);
+}
+function closeIso(){
+  if (!iso) return; iso = null; $('#iso').style.display='none';
+  all.forEach(m=>{m.visible = on(m,cur)}); look(cur);
+  if (saved){cam.position.copy(saved.pos); ctl.target.copy(saved.tgt); saved=null}
+}
+$('#iso-back').onclick = closeIso;
+
+// ---- hover name, tap for close-up
+const ray = new THREE.Raycaster(), ms = new THREE.Vector2(), tip = $('#tip'); let down=null;
+function pick(e){const r=ren.domElement.getBoundingClientRect();ms.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ms,cam);return ray.intersectObjects(all.filter(m=>m.visible),false)[0]}
+ren.domElement.addEventListener('pointermove',e=>{const h=pick(e);if(h){tip.style.display='block';tip.textContent=h.object.userData.p.label;tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+10+'px'}else tip.style.display='none'});
+ren.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+ren.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const h=pick(e);if(h&&!iso)openIso(h.object.userData.p.label,h.object)});
+
+const EMBED = qs.get('embed')==='1';
+if (EMBED){ document.body.classList.add('embed'); size(); }
+$('#e-play').onclick=()=>go(cur);
+$('#e-spread').oninput=e=>{spread=e.target.value/100; $('#spread').value=e.target.value};
+// the parent page (Build Manual) changes the step: postMessage({step:'m31'}) or {step:'c-y-wire'}
+addEventListener('message', e=>{ const k = e.data && e.data.step; if (k==null) return;
+  const i = STEPS.findIndex(s=>s.key==k || String(s.n)===String(k)); if (i>=0) go(i, e.data.play!==false); });
+let start = 0; if (!EMBED) try{start = +(localStorage.getItem(META.key)||0)}catch(e){}
+if (qs.get('step')){ const k = STEPS.findIndex(s=>s.key==qs.get('step') || String(s.n)===qs.get('step')); if (k>=0) start = k; }
+if (qs.get('view')) fit.view = qs.get('view').split(',').map(Number);
+go(start, !qs.get('still'));
+if (qs.get('spread')){ spread=+qs.get('spread')/100; $('#spread').value=qs.get('spread'); }
+if (qs.get('iso')) openIso(qs.get('iso'));
+if (qs.get('zoom')){ cam.position.sub(ctl.target).multiplyScalar(+qs.get('zoom')).add(ctl.target); }
+if (qs.get('still') && qs.get('t')!=null) playStep();
+(function loop(){requestAnimationFrame(loop); if(anim) anim(); place(); ctl.update(); s1.position.copy(cam.position); s1.target.position.copy(ctl.target); ren.render(scene,cam)})();
+</script>
+</body>
+</html>
