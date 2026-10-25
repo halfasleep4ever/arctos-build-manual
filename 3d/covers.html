@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Covers 3D</title>
+<style>
+  :root{--bg:#eeeeee;--ink:#1a1a1a;--mute:#6b6b6b;--line:#c9ced6;--card:#ffffff;--new:#e07a00}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif}
+  #view{position:fixed;inset:0 0 0 360px}
+  .panel{position:fixed;left:0;top:0;bottom:0;width:360px;overflow:auto;background:var(--card);border-right:1px solid var(--line);padding:14px 16px 90px}
+  h1{font-size:13px;letter-spacing:.18em;margin:0 0 12px;font-weight:700}
+  h1 span{font-weight:400;color:var(--mute);letter-spacing:.1em}
+  .steps{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+  .steps button{min-width:42px;padding:4px 7px}
+  .steps button.card{border-style:dashed;font-size:12px}
+  button{font:inherit;border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:6px;padding:6px 10px;min-height:40px;cursor:pointer}
+  button.on{background:var(--ink);color:#fff}
+  button:focus-visible{outline:3px solid #1d6fd8;outline-offset:2px}
+  h2{font-size:20px;margin:6px 0 6px}
+  .kind{font-size:11px;letter-spacing:.14em;color:var(--mute);font-weight:700}
+  .spr{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;font-weight:600;margin:4px 0 10px}
+  .spr input{width:100%;accent-color:#1a1a1a;min-height:32px}
+  .txt{margin:0 0 10px}
+  .txt code{background:#f0f1f3;padding:0 3px;border-radius:3px}
+  .txt ol,.txt ul{margin:4px 0;padding-left:20px}
+  .txt table{border-collapse:collapse;margin:6px 0;font-size:13px}
+  .txt td,.txt th{border:1px solid var(--line);padding:3px 6px;text-align:left}
+  .txt .call{border-left:4px solid var(--new);background:#fff6ec;padding:6px 8px;margin:8px 0;border-radius:0 4px 4px 0}
+  .txt .chk{color:var(--mute);font-size:13px}
+  .lbl{font-size:11px;letter-spacing:.14em;color:var(--mute);font-weight:700;margin:14px 0 6px}
+  ul.pl{list-style:none;margin:0;padding:0}
+  ul.pl li{display:flex;align-items:center;gap:8px;padding:7px 6px;border-bottom:1px solid #eef0f3;min-height:40px}
+  ul.pl li[data-l],ul.pl li[data-w]{cursor:pointer}
+  ul.pl li[data-l]:hover,ul.pl li[data-w]:hover{background:#f5f6f8}
+  ul.pl li .sw{width:12px;height:12px;border-radius:3px;border:1px solid #111;flex:none}
+  ul.pl li .sw.w{height:5px;border-radius:3px;width:18px}
+  ul.pl li b{font-weight:600}
+  ul.pl li .n{margin-left:auto;font:12px ui-monospace,monospace;color:var(--mute)}
+  ul.pl li.new b{color:var(--new)}
+  ul.pl li.info{color:var(--mute)}
+  ul.pl li.rm{color:#c62828;font-weight:600}
+  .bar{position:fixed;left:0;bottom:0;width:360px;background:#fff;border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:8px}
+  .bar button{flex:1}
+  #tip{position:fixed;pointer-events:none;background:#1a1a1a;color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;display:none;white-space:nowrap;z-index:5}
+  #iso{position:fixed;right:14px;top:14px;width:300px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:none;z-index:4}
+  #iso h3{margin:0 0 4px;font-size:17px}
+  #iso .m{color:var(--mute);font-size:13px}
+  #hint{position:fixed;right:14px;bottom:12px;color:var(--mute);font-size:12px}
+  /* ?embed=1: only the 3D view, for the Build Manual iframe */
+  body.embed .panel, body.embed .bar, body.embed #hint{display:none}
+  body.embed #view{inset:0}
+  #emb{display:none;position:fixed;left:10px;bottom:10px;right:10px;gap:10px;align-items:center;z-index:3}
+  body.embed #emb{display:flex}
+  #emb button{min-height:36px;padding:4px 10px}
+  #emb label{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.85);border-radius:6px;padding:4px 10px;font-weight:600;font-size:13px}
+  #emb input{width:140px;accent-color:#1a1a1a}
+  /* loading overlay, tools (Re-center, Names, full screen), name labels with leader lines */
+  #load{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg);z-index:20;font-weight:600}
+  #load .pb{width:min(260px,70vw);height:8px;border-radius:4px;background:#d7dae0;overflow:hidden}
+  #load .pb i{display:block;height:100%;width:0;background:var(--ink);transition:width .15s}
+  #load .m{font-weight:400;color:var(--mute);font-size:13px}
+  #load.err{color:#a3271b}
+  #tools{position:fixed;right:10px;top:10px;display:flex;gap:6px;z-index:4}
+  #tools button{min-height:36px;padding:4px 10px;background:rgba(255,255,255,.92)}
+  #tools button.on{background:var(--ink);color:#fff}
+  #tools button.hot{border-color:var(--new);box-shadow:0 0 0 2px var(--new)}
+  #fs{display:none}
+  body.embed #fs{display:block}
+  body.iso #tools{display:none}
+  #lbl{position:fixed;inset:0 0 0 360px;pointer-events:none;z-index:2;overflow:hidden}
+  #lbl svg{position:absolute;inset:0;width:100%;height:100%}
+  #lbl line{stroke:#1a1a1a;stroke-width:1.2}
+  #lbl circle{fill:var(--new);stroke:#fff;stroke-width:1.5}
+  #lbl div{position:absolute;background:#fff;border:1.5px solid var(--new);color:var(--ink);font-size:12px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-50%)}
+  #lbl div.rm{border-color:#c62828;color:#c62828}
+  body.embed #lbl{inset:0}
+  body.nolbl #lbl{display:none}
+  @media (max-width:760px){
+    #lbl{inset:0 0 46% 0}
+    #tools{top:auto;bottom:calc(46% + 8px)}
+    body.embed #tools{top:10px;bottom:auto}
+    #lbl div{font-size:11px;padding:1px 5px}
+  }
+  @media (max-width:480px){
+    #emb{flex-wrap:wrap;gap:6px}
+    #emb input{width:90px}
+  }
+  @media (max-width:760px){
+    #view{inset:0 0 46% 0}
+    .panel{top:54%;width:auto;right:0;border-right:0;border-top:1px solid var(--line)}
+    .bar{width:auto;right:0}
+    #iso{left:8px;right:8px;width:auto;top:8px}
+    #hint{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="lbl"><svg></svg></div>
+<div class="panel">
+  <h1 id="h1"></h1>
+  <div class="steps" id="steps"></div>
+  <label class="spr">Spread apart <input type="range" id="spread" min="0" max="100" value="0" aria-label="Spread the parts apart"></label>
+  <div class="kind" id="st-kind"></div>
+  <h2 id="st-title"></h2>
+  <p class="txt" id="st-text"></p>
+  <div class="lbl">NEW IN THIS STEP</div><ul class="pl" id="pl-new"></ul>
+  <div class="lbl">ALREADY IN</div><ul class="pl" id="pl-old"></ul>
+</div>
+<div class="bar"><button id="prev">← Back</button><button id="play">▶ Replay</button><button id="next">Next →</button></div>
+<div id="iso"><h3 id="iso-name"></h3><div class="m" id="iso-meta"></div><div style="margin-top:10px;display:flex;gap:8px"><button id="iso-back">← Back to the step</button></div></div>
+<div id="tools"><button id="recenter" title="Point the camera at this step's parts again">⌖ Re-center</button><button id="names" aria-pressed="true" title="Show or hide the part names">Names</button><button id="fs" title="Full screen">⛶</button></div>
+<div id="tip"></div>
+<div id="emb"><button id="e-play">▶ Replay</button><label>Spread apart <input type="range" id="e-spread" min="0" max="100" value="0" aria-label="Spread the parts apart"></label></div>
+<div id="hint">Tap a piece or a wire for a close-up. Drag to turn, scroll to zoom.</div>
+<div id="load"><div>Loading the 3D parts…</div><div class="pb"><i></i></div><div class="m"></div></div>
+<script>window.ST_FILE='covers_data.js'; window.ST_BYTES=+'11696542'||0; if (new URLSearchParams(location.search).get('embed')==='1') document.body.classList.add('embed');
+  if (/^https?:$/.test(location.protocol)) window.__pk = fetch(window.ST_FILE);   // start the download at once (file:// pages load it with a script tag)
+  addEventListener('message', e=>{ if (e.data && e.data.step!=null) window.__st0 = e.data; });   // a step asked for while the parts still load</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","meshopt":"https://cdn.jsdelivr.net/npm/meshoptimizer@0.22.0/meshopt_decoder.module.js"}}</script>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/meshoptimizer@0.22.0/meshopt_decoder.module.js">
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {MeshoptDecoder} from 'meshopt';
+const $ = s => document.querySelector(s);
+// ---- data: <stage>_data.js = window.ST_PACK="<base64 of gzip(pack)>" (lossless meshopt pack, see lib.pack_data).
+// http(s): read with fetch (progress bar); file://: a script tag. Old pages (window.ST=...) still load.
+const load = $('#load');
+const prog = (f, msg) => { load.querySelector('i').style.width = Math.round(f*100)+'%'; load.querySelector('.m').textContent = msg; };
+async function getData(){
+  let txt = null;
+  if (window.__pk){
+    const res = await window.__pk; if (!res.ok) throw new Error('HTTP '+res.status+' for '+window.ST_FILE);
+    const total = +window.ST_BYTES || +res.headers.get('content-length') || 0, rd = res.body && res.body.getReader && res.body.getReader();
+    if (rd){ const parts = []; let got = 0;
+      for (;;){ const {done, value} = await rd.read(); if (done) break; parts.push(value); got += value.length;
+        if (total) prog(Math.min(.99, got/total), (got/1048576).toFixed(1)+' of '+(total/1048576).toFixed(1)+' MB'); }
+      const b = new Uint8Array(got); let o = 0; for (const p of parts){ b.set(p, o); o += p.length; }
+      txt = new TextDecoder().decode(b);
+    } else txt = await res.text();
+    if (txt.startsWith('window.ST=')) { (0, eval)(txt); return window.ST; }
+    txt = txt.slice(txt.indexOf('"')+1, txt.lastIndexOf('"'));
+  } else {
+    prog(.05, ''); await new Promise((ok, no)=>{ const s = document.createElement('script'); s.src = window.ST_FILE; s.onload = ok; s.onerror = ()=>no(new Error('could not load '+window.ST_FILE)); document.head.appendChild(s); });
+    if (window.ST) return window.ST;
+    txt = window.ST_PACK; window.ST_PACK = null;
+  }
+  prog(1, 'Unpacking…');
+  let buf;
+  if (Uint8Array.fromBase64) buf = Uint8Array.fromBase64(txt);
+  else { try { buf = new Uint8Array(await (await fetch('data:application/octet-stream;base64,'+txt)).arrayBuffer()); }
+         catch(e){ const bin = atob(txt); buf = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) buf[i] = bin.charCodeAt(i); } }
+  if (typeof DecompressionStream==='undefined') throw new Error('This browser is too old for the 3D view (no DecompressionStream). Please update it.');
+  buf = new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+  if (String.fromCharCode(...buf.subarray(0,4))!=='A3D2') throw new Error('not a 3D pack file');
+  const n = new DataView(buf.buffer, buf.byteOffset).getUint32(4, true);
+  const d = JSON.parse(new TextDecoder().decode(buf.subarray(8, 8+n)));
+  d.blob = buf.subarray(8 + n + ((4 - (8+n)%4)%4));
+  return d;
+}
+let D;
+try { [D] = await Promise.all([getData(), MeshoptDecoder.ready]); }
+catch (e){ load.classList.add('err'); load.innerHTML = '<div>Could not load the 3D view.</div><div class="m">'+String(e.message||e)+'</div>'; throw e; }
+prog(1, 'Building the parts…'); await new Promise(r=>requestAnimationFrame(()=>setTimeout(r)));
+const META = D.meta, STEPS = D.steps;
+const KIND = {printed:0xe9e9e6, bearing:0xb8bec6, pin:0xc9ced4, rod:0xb9bdc3, bolt:0x3a3d42, nut:0x55595f, screw:0x3a3d42, washer:0x9aa0a8,
+              magnet:0x8c96a3, pulley:0xa9aeb5, belt:0x2b2b2b, motor:0x45484e, driver:0x2f3a4a, sensor:0x1f5fa8, other:0xd0d0d0};
+$('#h1').innerHTML = META.h1;
+
+const view = $('#view');
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xeeeeee);
+const cam = new THREE.PerspectiveCamera(32, 1, 0.5, 5000); cam.up.set(0,0,1);
+const ren = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+ren.setPixelRatio(Math.min(devicePixelRatio,2)); view.appendChild(ren.domElement);
+const ctl = new OrbitControls(cam, ren.domElement); ctl.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 1.5));
+const s1 = new THREE.DirectionalLight(0xffffff, 1.7); s1.position.set(1,-0.8,1.6); scene.add(s1); scene.add(s1.target);
+const s2 = new THREE.DirectionalLight(0xffffff, 0.6); s2.position.set(-1,1,0.4); scene.add(s2);
+function size(){const r=view.getBoundingClientRect();ren.setSize(r.width,r.height);cam.aspect=r.width/r.height;cam.updateProjectionMatrix()}
+addEventListener('resize',size); size();
+const V3 = a => new THREE.Vector3(a[0],a[1],a[2]);
+
+// Hard edges (faces bend > 30 deg, or open borders), like THREE.EdgesGeometry but with number keys on the 0.01 mm grid
+// (about 10x faster on the big pages). Returns the segment end points.
+const COS30 = Math.cos(THREE.MathUtils.degToRad(30));
+function hardEdges(pos, idx){
+  const nv = pos.length/3, wid = new Int32Array(nv), wm = new Map(); let nw = 0;
+  for (let i=0;i<nv;i++){ const k = (Math.round(pos[i*3]*100)+32768)*4294967296 + (Math.round(pos[i*3+1]*100)+32768)*65536 + (Math.round(pos[i*3+2]*100)+32768);
+    let w = wm.get(k); if (w===undefined){ w = nw++; wm.set(k, w); } wid[i] = w; }
+  const nt = idx.length/3, em = new Map(), en = new Float32Array(nt*9), ev = new Int32Array(nt*6); let ne = 0;
+  const out = [], seg = (a,b)=>{ out.push(pos[a*3],pos[a*3+1],pos[a*3+2],pos[b*3],pos[b*3+1],pos[b*3+2]); };
+  for (let t=0;t<nt;t++){
+    const i0 = idx[t*3], i1 = idx[t*3+1], i2 = idx[t*3+2], w0 = wid[i0], w1 = wid[i1], w2 = wid[i2];
+    if (w0===w1 || w1===w2 || w0===w2) continue;
+    const ax = pos[i1*3]-pos[i0*3], ay = pos[i1*3+1]-pos[i0*3+1], az = pos[i1*3+2]-pos[i0*3+2];
+    const bx = pos[i2*3]-pos[i0*3], by = pos[i2*3+1]-pos[i0*3+1], bz = pos[i2*3+2]-pos[i0*3+2];
+    let nx = ay*bz-az*by, ny = az*bx-ax*bz, nz = ax*by-ay*bx; const L = Math.hypot(nx,ny,nz) || 1; nx/=L; ny/=L; nz/=L;
+    const vs = [i0,i1,i2], ws = [w0,w1,w2];
+    for (let j=0;j<3;j++){
+      const a = ws[j], b = ws[(j+1)%3], k = a<b ? a*nw+b : b*nw+a, e = em.get(k);
+      if (e===undefined){ em.set(k, ne); en[ne*3]=nx; en[ne*3+1]=ny; en[ne*3+2]=nz; ev[ne*2]=vs[j]; ev[ne*2+1]=vs[(j+1)%3]; ne++; }
+      else if (e>=0){ if (en[e*3]*nx+en[e*3+1]*ny+en[e*3+2]*nz <= COS30) seg(ev[e*2], ev[e*2+1]); em.set(k, -1); }
+    }
+  }
+  for (const e of em.values()) if (e>=0) seg(ev[e*2], ev[e*2+1]);       // open borders
+  return out;
+}
+// ---- outlines: on plates and hardware; none on fine-toothed or tiny-featured parts (gears, pulleys, belts, magnets,
+// boards), and tiny segments (lettering, knurls) dropped, so nothing looks fuzzy. Dense meshes get faint lines or none.
+const NOEDGE = new Set(['belt','pulley','gear','magnet','sensor','electronics','driver','terminal']);
+function edgesFor(g, p){
+  if (NOEDGE.has(p.kind) || p.noedge) return null;
+  const a = hardEdges(g.attributes.position.array, g.index.array), out = [];
+  for (let i=0;i<a.length;i+=6){ const dx=a[i]-a[i+3], dy=a[i+1]-a[i+4], dz=a[i+2]-a[i+5]; if (dx*dx+dy*dy+dz*dz >= 0.6) for (let k=0;k<6;k++) out.push(a[i+k]); }
+  g.computeBoundingBox(); const s = g.boundingBox.getSize(new THREE.Vector3());
+  const S = 2*(s.x*s.y+s.y*s.z+s.z*s.x)+1, dens = (out.length/6)/S;
+  if (dens > 1.5) return null;
+  const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.Float32BufferAttribute(out, 3));
+  return {g:eg, op: dens > 0.45 ? .2 : .5};
+}
+// ---- part meshes: positions int16 in 0.01 mm around the part centre
+const dec = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0)).buffer;
+const root = new THREE.Group(); scene.add(root);
+const all = [], ghosts = [], LIN = [];
+for (let i=0;i<256;i++){ const c=i/255; LIN.push(c<=0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4)); }   // sRGB -> linear
+let tb = performance.now(), np_ = 0;
+for (const p of D.parts){
+  let pos, idx, rgb = null, nv;
+  if (p.g){        // packed: meshopt-coded int16 positions (x,y,z,pad), 32-bit indices, optional RGBA colours
+    const [off, n, vbn, ni, ibn, cbn] = p.g; nv = n;
+    const v4 = new Int16Array(n*4); MeshoptDecoder.decodeVertexBuffer(new Uint8Array(v4.buffer), n, 8, D.blob.subarray(off, off+vbn));
+    const ix = new Uint32Array(ni); MeshoptDecoder.decodeIndexBuffer(new Uint8Array(ix.buffer), ni, 4, D.blob.subarray(off+vbn, off+vbn+ibn));
+    pos = new Float32Array(n*3); for (let i=0;i<n;i++){ pos[i*3]=v4[i*4]*0.01; pos[i*3+1]=v4[i*4+1]*0.01; pos[i*3+2]=v4[i*4+2]*0.01; }
+    idx = n>65535 ? ix : Uint16Array.from(ix);
+    if (cbn){ const c4 = new Uint8Array(n*4); MeshoptDecoder.decodeVertexBuffer(c4, n, 4, D.blob.subarray(off+vbn+ibn, off+vbn+ibn+cbn));
+      rgb = new Float32Array(n*3); for (let i=0;i<n;i++){ rgb[i*3]=LIN[c4[i*4]]; rgb[i*3+1]=LIN[c4[i*4+1]]; rgb[i*3+2]=LIN[c4[i*4+2]]; } }
+  } else {         // old format: base64 int16 positions + indices (+ vc RGB)
+    const q = new Int16Array(dec(p.p)); pos = new Float32Array(q.length); for (let i=0;i<q.length;i++) pos[i] = q[i]*0.01;
+    idx = p.i32 ? new Uint32Array(dec(p.i)) : new Uint16Array(dec(p.i));
+    if (p.vc){ const u8 = new Uint8Array(dec(p.vc)); rgb = new Float32Array(u8.length); for (let i=0;i<u8.length;i++) rgb[i] = LIN[u8[i]]; }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setIndex(new THREE.BufferAttribute(idx,1)); g.computeVertexNormals();
+  const sw = new THREE.Color(p.color ? parseInt(p.color,16) : (KIND[p.kind]??KIND.other));
+  if (rgb){ g.setAttribute('color', new THREE.BufferAttribute(rgb, 3)); p.vc = true; }
+  const base = p.vc ? new THREE.Color(0xffffff) : sw;
+  const shiny = !['printed','belt','driver','sensor','terminal'].includes(p.kind);
+  const mat = new THREE.MeshStandardMaterial({color:base, vertexColors:!!p.vc, roughness:shiny?.35:.8, metalness:shiny?.55:0, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1});
+  if (p.ghost){ mat.transparent = true; mat.opacity = .22; mat.depthWrite = false; }
+  const m = new THREE.Mesh(g, mat);
+  const eg = edgesFor(g, p);
+  if (eg) m.add(new THREE.LineSegments(eg.g, new THREE.LineBasicMaterial({color:0x1a1a1a, transparent:true, opacity:p.ghost?.12:eg.op})));
+  const home = V3(p.c); m.position.copy(home);
+  Object.assign(m.userData, {p, home, base, sw});
+  root.add(m); (p.ghost ? ghosts : all).push(m);
+  np_++; if (performance.now()-tb > 40){ prog(1, 'Building the parts… '+Math.round(np_/D.parts.length*100)+' %'); await new Promise(r=>setTimeout(r)); tb = performance.now(); }
+}
+D.blob = null;
+// ---- wires: tubes along smooth paths; they grow from end to end in their step and move with the piece they hang on
+const WSEG = 160;
+function samples(flat){ const pts=[]; for(let i=0;i<flat.length;i+=3) pts.push(new THREE.Vector3(flat[i],flat[i+1],flat[i+2]));
+  return new THREE.CatmullRomCurve3(pts,false,'centripetal').getSpacedPoints(WSEG); }
+function tube(sm, r){ return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sm,false,'catmullrom',0), WSEG, r, 8, false); }
+for (const w of (D.wires||[])){
+  w.kind = 'wire'; w.sm = w.paths.map(pa=>({s:pa.s, pts:samples(pa.pts)}));
+  const base = new THREE.Color(parseInt(w.color,16));
+  const mat = new THREE.MeshStandardMaterial({color:base, roughness:.55, metalness:0, transparent:true, opacity:1});
+  const m = new THREE.Mesh(tube(w.sm[0].pts, w.r), mat);
+  Object.assign(m.userData, {p:w, home:new THREE.Vector3(), base, wire:true, path:0});
+  root.add(m); all.push(m);
+}
+const isW = m=>m.userData.wire===true;
+// ---- 'Table' boards under the bench groups (pieces waiting beside the arm): light wood, shown while the group is there
+const tables = [];
+for (const t of (D.tables||[])){
+  const g = new THREE.BoxGeometry(...t.size);
+  const mat = new THREE.MeshStandardMaterial({color:0xd8b98a, roughness:.85, metalness:0});
+  const m = new THREE.Mesh(g, mat); m.position.set(...t.c);
+  m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({color:0x8a6a3a, transparent:true, opacity:.5})));
+  // "TABLE" printed on the board so it reads as the work table, not a part (made up: the CAD has no table)
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128; const cx = cv.getContext('2d');
+  cx.fillStyle = '#8a6a3a'; cx.font = 'bold 64px system-ui,sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('TABLE', 256, 64);
+  const tw_ = Math.min(t.size[0]*0.6, t.size[1]*1.6, 140), lab = new THREE.Mesh(new THREE.PlaneGeometry(tw_, tw_/4), new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv), transparent:true, depthWrite:false}));
+  lab.position.set(0, -t.size[1]/2 + tw_/8 + 4, t.size[2]/2 + 0.2); lab.renderOrder = 2; m.add(lab);
+  m.userData = {table:t, p:{label:'Table (made up: your work table, not a part of the arm)'}}; m.visible = false; root.add(m); tables.push(m);
+}
+const showTables = n=>tables.forEach(m=>{ const t=m.userData.table; m.userData.show = n>=t.first && n<=t.ms; m.visible = !iso && !spread && m.userData.show; });
+const count = {}, stepsOf = {};
+for (const m of all){ const p=m.userData.p; count[p.label]=(count[p.label]||0)+1; (stepsOf[p.label] ||= new Set()).add(p.s); }
+const sname = s => s<0 ? META.base_steps : (STEPS[s].kind==='card' ? '“'+STEPS[s].title+'”' : STEPS[s].n);
+
+// ---- steps
+let cur = 0, anim = null, iso = null;
+const sb = $('#steps');
+STEPS.forEach((s,i)=>{const b=document.createElement('button');b.textContent=s.btn;if(s.kind==='card')b.className='card';b.setAttribute('aria-label',(s.kind==='card'?'Card: ':'Step ')+s.title);b.title=s.title;b.onclick=()=>go(i);sb.appendChild(b)});
+const hex = c => '#'+c.getHex().toString(16).padStart(6,'0');
+function listHTML(ms, isNew){
+  const g = {}; for (const m of ms){const l=m.userData.p.label;(g[l] ||= []).push(m)}
+  return Object.entries(g).map(([l,a])=>{ const w=isW(a[0]);
+    return `<li class="${isNew?'new':''}" ${w?'data-w':'data-l'}="${l}"><span class="sw${w?' w':''}" style="background:${hex(a[0].userData.sw||a[0].userData.base)}"></span><b>${l}</b><span class="n">${w?'wire':'×'+a.length}</span></li>`}).join('');
+}
+function fitView(objs, pad=1.12){
+  const b = new THREE.Box3(); objs.forEach(o=>b.expandByObject(o));
+  const c = b.getCenter(new THREE.Vector3());
+  const dir = cam.position.clone().sub(ctl.target).normalize();
+  if (!isFinite(dir.x) || dir.length()<.5 || fit.view) dir.set(...(fit.view||META.view||[.75,-.55,.45])).normalize();
+  fit.view = null;
+  const d = boxDist(b, dir, pad);
+  return {tgt:c, pos:c.clone().addScaledVector(dir, d), d, dir};
+}
+function fit(objs, pad=1.12){ flyTo(fitView(objs, pad)); }
+const qs = new URLSearchParams(location.search), FREEZE = qs.get('t')!=null ? +qs.get('t') : null;  // ?t=ms freezes the animation (tests)
+const SC = V3(META.spread.c), SW = V3(META.spread.w);
+let spread = 0;
+// a piece built beside the arm moves in at each offs[k].ms; before it, it rests at home + offs[k].off
+const restOff = (p,n)=>{ for (const e of (p.offs||[])) if (n < e.ms) return e.off; return null; };
+const mvAt = (p,n)=>(p.offs||[]).find(e=>e.ms===n);
+const on = (m,n)=>m.userData.p.s<=n && !(m.userData.p.u!=null && n>=m.userData.p.u);
+// where a piece rests at step n: its build spot beside the arm until it moves in, then home
+function rest(m, n){
+  const p = m.userData.p, v = m.userData.home.clone();
+  const o = restOff(p, n); if (o) v.add(V3(o));
+  return v;
+}
+function pathAt(m, n){ const p=m.userData.p; let k=0; p.sm.forEach((pa,i)=>{ if (pa.s<=n) k=i; }); return k; }
+function setPath(m, pts){ m.geometry.dispose(); m.geometry = tube(pts, m.userData.p.r); }
+// spread apart: everything moves out from the middle of the arm, fasteners also back out of their holes
+function spreadOff(m){
+  if (!spread || isW(m)) return new THREE.Vector3();
+  const p = m.userData.p, v = m.userData.home.clone().sub(SC).multiply(SW).multiplyScalar(1.4*spread);
+  return v.addScaledVector(V3(p.dir||[0,0,0]), (p.kind==='printed'?0:(p.dist||60))*0.9*spread);
+}
+function place(){
+  if (iso) return;
+  const n = cur;
+  for (const m of all){
+    if (!m.visible) continue;
+    const a = m.userData.a;
+    m.position.copy(a ? a.pos : rest(m, n)).add(spreadOff(m));
+    if (isW(m)) m.material.opacity = spread ? .35 : 1;
+  }
+  for (const m of ghosts) m.visible = !spread;
+  for (const m of tables) m.visible = !spread && !!m.userData.show;
+}
+function look(n){
+  all.forEach(m=>{ const p=m.userData.p;
+    m.material.color.copy(m.userData.base);
+    m.material.emissive.set(p.s===n ? (isW(m) ? m.userData.base.clone().multiplyScalar(.45) : 0x8a4200) : (mvAt(p,n) ? 0x5a2c00 : 0)); });
+}
+function go(i, play=true){
+  cur = Math.max(0, Math.min(STEPS.length-1, i)); closeIso();
+  const s = STEPS[cur], n = cur, ordr = (a,b)=>(a.userData.p.ord-b.userData.p.ord)||(a.userData.p.sub-b.userData.p.sub);
+  [...sb.children].forEach((b,k)=>b.classList.toggle('on',k===cur));
+  $('#st-kind').textContent = s.kind==='card' ? 'CARD · '+s.card : 'MANUAL STEP '+s.n;
+  $('#st-title').textContent = s.title; $('#st-text').innerHTML = s.text;
+  const vis = all.filter(m=>on(m,n)), nw = vis.filter(m=>m.userData.p.s===n).sort(ordr);
+  const mv = vis.filter(m=>mvAt(m.userData.p,n));
+  anim = null;                                          // cancel what was still moving (morphs, removals)
+  all.forEach(m=>{m.visible = on(m,n); m.userData.a = null; m.position.copy(rest(m,n)); m.quaternion.identity();
+    if (!isW(m) && !m.userData.p.ghost && m.material.opacity<1){ m.material.opacity = 1; m.material.transparent = false; }
+    if (isW(m)){ const k=pathAt(m,n); if (k!==m.userData.path || m.userData.dirty){ setPath(m, m.userData.p.sm[k].pts); m.userData.path=k; m.userData.dirty=false; } m.geometry.setDrawRange(0, Infinity); } });
+  look(n); showTables(n);
+  const gone = all.filter(m=>m.userData.p.u===n);
+  const GONE = {unplug:'Unplug', uncoil:'Uncoil and run on', remove:'Take out'};
+  let lst = gone.length ? [...new Set(gone.map(m=>`<li class="rm">${isW(m) ? (GONE[m.userData.p.gone||'uncoil']||'Uncoil and run on') : 'Take out'}: ${m.userData.p.label}</li>`))].join('') : '';
+  lst += nw.length ? listHTML(nw,true) : '';
+  if (mv.length) lst += [...new Set(mv.map(m=>mvAt(m.userData.p,n).mgrp))].filter(Boolean).map(g=>`<li class="info">Slides in: ${g}</li>`).join('');
+  const rer = vis.filter(m=>isW(m) && m.userData.p.s<n && m.userData.p.sm.some(pa=>pa.s===n));
+  if (rer.length) lst += `<li class="info">Moved to a new path: ${[...new Set(rer.map(m=>m.userData.p.group||m.userData.p.label))].join(', ')}</li>`;
+  $('#pl-new').innerHTML = lst || '<li class="info">Nothing new: look at the result.</li>';
+  const old = vis.filter(m=>m.userData.p.s<n);
+  const nb = old.filter(m=>m.userData.p.s<0).length;
+  $('#pl-old').innerHTML = (nb ? `<li class="info"><b>${META.base_name}</b><span class="n">${nb} parts</span></li>` : '') + listHTML(old.filter(m=>m.userData.p.s>=0),false);
+  document.querySelectorAll('ul.pl li[data-l]').forEach(li=>li.onclick=()=>openIso(li.dataset.l));
+  document.querySelectorAll('ul.pl li[data-w]').forEach(li=>li.onclick=()=>openIso(li.dataset.w));
+  // frame the step: also the build spots that pieces slide in from
+  const fixed = qs.get('view') ? fit.view : (s.view || null);
+  const rer2 = vis.filter(m=>isW(m) && m.userData.p.s<n && m.userData.p.sm.some(pa=>pa.s===n));
+  gone.forEach(m=>{ m.position.copy(rest(m, n-1)); m.updateMatrixWorld(true); });
+  const focus = [...new Set([...gone, ...nw, ...mv, ...rer2])];
+  place(); userCam = false; camPlan = null; tw = null; $('#recenter').classList.remove('hot');
+  stepView = null;
+  const core = (nw.length || mv.length) ? [...new Set([...nw, ...mv])] : focus;   // wires that only move to a new path don't steer the end view
+  const follow = play && focus.length && !RM.matches;               // the camera follows each install group
+  if (focus.length) stepView = viewFor(core, vis, n, fixed, lastDir(), focus, true);
+  else { if (fixed) fit.view = fixed; const fr = vis.filter(m=>!isW(m)); stepView = fitView(fr.length?fr:all); }
+  if (!follow) flyTo(stepView);
+  makeTags(n);
+  if (!EMBED) try{localStorage.setItem(META.key,cur)}catch(e){}
+  if (play) playStep(follow ? {vis, fixed} : null);
+}
+// pieces taken out at step n: shown at their last place, glowing red, then they slide back out (bolts turn out),
+// fade and are gone; wires pull back along their path from the far end.
+function showGone(n){
+  const g = all.filter(m=>m.userData.p.u===n);
+  g.forEach(m=>{ m.visible = true; m.position.copy(rest(m, n-1)); m.material.emissive.set(0x9a1010);
+    if (isW(m)){ const k = pathAt(m, n-1); if (k!==m.userData.path){ setPath(m, m.userData.p.sm[k].pts); m.userData.path=k; } m.geometry.setDrawRange(0, Infinity); } });
+  return g;
+}
+// ---- camera: aim at what is new in the step (and what moves in), from the side where it is least hidden.
+// Look from the model centre towards the new parts, raised 30 deg; frame the new parts plus their surroundings.
+// If they are hidden from that side, try the 4 diagonals and take the one with the fewest parts in the way (raycast).
+// Steps whose new parts sit in the same area as the last step's keep the camera direction (no needless jumps).
+let lastFocus = null, userCam = false, camPlan = null, stepView = null, tw = null;
+const UPA = THREE.MathUtils.degToRad(30), rc = new THREE.Raycaster();
+const RM = matchMedia('(prefers-reduced-motion: reduce)');       // reduced motion: the camera jumps, it never flies
+// the user turns or zooms (a drag of more than 4 px, or the wheel): stop moving the camera until the next step or Re-center
+function userTook(){ tw = null; if (!userCam){ userCam = true; $('#recenter').classList.add('hot'); } }
+let dragFrom = null;
+ren.domElement.addEventListener('pointerdown', e=>{ dragFrom = [e.clientX, e.clientY]; });
+ren.domElement.addEventListener('pointerup', ()=>{ dragFrom = null; });
+ren.domElement.addEventListener('pointermove', e=>{ if (dragFrom && e.buttons && Math.hypot(e.clientX-dragFrom[0], e.clientY-dragFrom[1])>4) userTook(); });
+ren.domElement.addEventListener('wheel', userTook, {passive:true});
+const lastDir = ()=>{ const v = cam.position.clone().sub(ctl.target); return v.length()>1 ? v.normalize() : null; };
+function setCam(v){ ctl.target.copy(v.tgt); cam.position.copy(v.pos); }
+// fly to a view in 0.7 s (target lerped, direction slerped, distance lerped in log space); jumps with reduced motion / ?t=
+function flyTo(v, dur=700){
+  if (!v) return;
+  if (RM.matches || FREEZE!=null || !flyTo.ok){ tw = null; setCam(v); return; }
+  tw = {t0:performance.now(), dur, t0v:ctl.target.clone(), o0:cam.position.clone().sub(ctl.target), v};
+}
+function tweenCam(){
+  if (!tw) return;
+  const u = Math.min(1, (performance.now()-tw.t0)/tw.dur), e = ease(u);
+  const o1 = tw.v.pos.clone().sub(tw.v.tgt), d0 = Math.max(tw.o0.length(), 1e-3), d1 = Math.max(o1.length(), 1e-3);
+  const q = new THREE.Quaternion().setFromUnitVectors(tw.o0.clone().normalize(), o1.clone().normalize());
+  const dir = tw.o0.clone().normalize().applyQuaternion(new THREE.Quaternion().slerp(q, e));
+  ctl.target.lerpVectors(tw.t0v, tw.v.tgt, e);
+  cam.position.copy(ctl.target).addScaledVector(dir, Math.exp(Math.log(d0)*(1-e)+Math.log(d1)*e));
+  if (u>=1) tw = null;
+}
+// distance at which every corner of a box fits the view (aspect included, 12 % margin), looking along -dir
+function boxDist(b, dir, pad=1.12){
+  const c = b.getCenter(new THREE.Vector3()), tv = Math.tan(THREE.MathUtils.degToRad(cam.fov)/2), th = tv*cam.aspect;
+  const f = dir.clone().normalize(); let x = new THREE.Vector3().crossVectors(new THREE.Vector3(0,0,1), f);
+  if (x.lengthSq()<1e-6) x.set(1,0,0); x.normalize(); const y = new THREE.Vector3().crossVectors(f, x);
+  let d = 1;
+  for (const X of [b.min.x,b.max.x]) for (const Y of [b.min.y,b.max.y]) for (const Z of [b.min.z,b.max.z]){
+    const v = new THREE.Vector3(X,Y,Z).sub(c), z = v.dot(f);
+    d = Math.max(d, z + Math.abs(v.dot(x))*pad/th, z + Math.abs(v.dot(y))*pad/tv); }
+  return d;
+}
+// camera framing: follows each install group (checked against the viewer3d per-step framing on screenshots,
+// 2026-10-25: this one picks the better side; the tight box fit below gives the same close framing). ?cam=group0 = the
+// old sphere fit with 60 mm of context, for comparison.
+const CAM = qs.get('cam') || 'group';
+// the best view of some items (at their rest places; pieces that move in also count at their build spot)
+function viewFor(focus, vis, n, fixed, prefer, occl, final){
+  const box = new THREE.Box3(), pts = [], tmp = new THREE.Box3(), mvd = new THREE.Vector3();
+  for (const m of focus){
+    m.updateMatrixWorld(true); tmp.setFromObject(m); if (tmp.isEmpty()) continue;
+    box.union(tmp);
+    // sample the side of the piece it goes in from (a bolt's head, not its shank inside the hole)
+    const c = tmp.getCenter(new THREE.Vector3()), sz = tmp.getSize(new THREE.Vector3()), dv = isW(m) ? null : V3(m.userData.p.dir||[0,0,0]);
+    if (dv && dv.length()>.5 && m.userData.p.kind!=='printed'){ dv.normalize(); c.addScaledVector(dv, Math.abs(sz.x*dv.x)/2+Math.abs(sz.y*dv.y)/2+Math.abs(sz.z*dv.z)/2+3); }
+    pts.push(c);
+    const e = mvAt(m.userData.p, n);
+    if (e && !final){ box.union(tmp.clone().translate(V3(e.off))); mvd.add(V3(e.off)); }
+  }
+  if (box.isEmpty()) box.setFromCenterAndSize(ctl.target.clone(), new THREE.Vector3(100,100,100));
+  if (!pts.length) pts.push(box.getCenter(new THREE.Vector3()));
+  const allB = new THREE.Box3(); vis.forEach(m=>{ if(!isW(m)) allB.expandByObject(m) });
+  const C = allB.isEmpty() ? box.getCenter(new THREE.Vector3()) : allB.getCenter(new THREE.Vector3());
+  const fc = pts.reduce((a,p)=>a.add(p), new THREE.Vector3()).multiplyScalar(1/pts.length);
+  const sz = box.getSize(new THREE.Vector3());
+  let fb;
+  if (CAM==='group0') fb = box.clone().expandByScalar(Math.max(60, 0.35*Math.max(sz.x,sz.y,sz.z)));
+  else {   // a little of the arm around the new parts: grow by 12 mm / 15 %, and to at least 18 % of the stage (>= 25 mm radius)
+    fb = box.clone().expandByScalar(Math.max(12, 0.15*Math.max(sz.x,sz.y,sz.z)));
+    const rAll = allB0(vis).getSize(new THREE.Vector3()).length()/2, rMin = Math.max((final ? .18 : .25)*rAll, 25), r0 = fb.getSize(new THREE.Vector3()).length()/2;
+    if (r0 < rMin) fb.expandByScalar((rMin - r0)/Math.sqrt(3));
+  }
+  const tgt = fb.getCenter(new THREE.Vector3()), r = fb.getSize(new THREE.Vector3()).length()/2;
+  const d = r*1.05/Math.sin(THREE.MathUtils.degToRad(cam.fov/2));
+  const raise = h=>{ h = h.clone(); h.z = 0; if (h.length()<1e-3) h.set(.75,-.55,0); h.normalize(); return new THREE.Vector3(h.x*Math.cos(UPA), h.y*Math.cos(UPA), Math.sin(UPA)); };
+  const fs = new Set(occl || focus), occ = vis.filter(m=>!isW(m) && !fs.has(m));
+  const smp = pts.length>14 ? pts.filter((_,i)=>i%Math.ceil(pts.length/14)===0) : pts;
+  // a sample is hidden if a part lies between it and the camera: rays camera -> sample, and (for a camera standing
+  // inside a part, where those rays only meet back faces) sample -> camera
+  const hidden = cp=>{ let k = 0; for (const p of smp){ const to = p.clone().sub(cp), L = to.length(); to.normalize(); rc.set(cp, to); rc.far = L-2;
+    if (rc.intersectObjects(occ, false).length){ k++; continue; }
+    rc.set(p.clone().addScaledVector(to, -1), to.clone().negate()); rc.far = L-3; if (rc.intersectObjects(occ, false).length) k++; } return k; };
+  // the tight box fit; if parts are in the way from there (the camera sits behind a wall), step back (x1.5, x2.2)
+  const dists = v=>{ const d0 = boxDist(fb, v); return CAM==='group0' ? [d] : [d0, d0*1.5, d0*2.2]; };
+  const bestD = v=>{ const ds = dists(v); let bd = null, bk = 1e9; for (const dd of ds){ const k = hidden(tgt.clone().addScaledVector(v, dd)); if (k < bk){ bk = k; bd = dd; } if (!k) break; }
+    if (bk >= smp.length) bd = ds[ds.length-1];      // hidden from every distance (inside a holder): show more of the arm around it
+    return [bd, bk]; };
+  let dir, dd;
+  if (fixed){ dir = V3(fixed).normalize(); dd = bestD(dir)[0]; }
+  else {
+    const md = mvd.length()>1 ? mvd.clone().normalize() : null;   // look across a slide, not along it
+    const cands = [];
+    if (prefer && lastFocus && lastFocus.distanceTo(fc) < 80) cands.push(prefer.clone());
+    let h = fc.clone().sub(C); if (h.x*h.x+h.y*h.y < 25) h = prefer ? prefer.clone() : V3(META.view||[.75,-.55,.45]);
+    cands.push(raise(h));
+    for (const [x,y] of [[1,1],[1,-1],[-1,-1],[-1,1]]) cands.push(raise(new THREE.Vector3(x,y,0)));
+    let bs = 1e9;
+    for (const v of cands){ const [d1, k] = bestD(v), sc = k + (md ? 1.5*Math.abs(v.dot(md)) : 0);
+      if (sc < bs - 1e-6){ bs = sc; dir = v; dd = d1; } if (sc===0) break; }
+  }
+  lastFocus = fc; fit.view = null;
+  return {tgt, pos:tgt.clone().addScaledVector(dir, dd), d:dd, dir};
+}
+const allB0 = vis=>{ const b = new THREE.Box3(); vis.forEach(m=>{ if (!isW(m)) b.expandByObject(m); }); return b; };
+const ease = u=>u<.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2, CAMT = 800;
+const box3 = (m, pos) => { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); return m.geometry.boundingBox.clone().translate(pos); };
+// camera during playback: before each install group the camera moves (0.8 s) to the best view of that group;
+// at the end it settles on the view that shows all of the step's new parts best.
+function camAt(t){
+  const P = camPlan; if (!P) return null;
+  let v = P.keys[0].v;
+  for (let k=1; k<P.keys.length; k++){
+    const K = P.keys[k];
+    if (t >= K.t){ v = K.v; continue; }
+    if (t > K.t-CAMT){ const e = ease((t-(K.t-CAMT))/CAMT), a = v;
+      return {tgt:a.tgt.clone().lerp(K.v.tgt,e), pos:a.pos.clone().lerp(K.v.pos,e), d:a.d+(K.v.d-a.d)*e}; }
+    break;
+  }
+  return v;
+}
+// install order: groups (same ord) one after another, the pieces of a group 0-500 ms apart, each 2.4 s.
+// New parts slide in along their fit direction and bolts turn; a finished sub-assembly slides in as one piece;
+// new wires grow from end to end; a wire that gets a new path bends over to it.
+function playStep(cv){
+  const n = cur;
+  const goneM = showGone(n);
+  const items = all.filter(m=>on(m,n) && (m.userData.p.s===n || mvAt(m.userData.p,n) || (isW(m) && m.userData.p.sm.some((pa,k)=>k>0 && pa.s===n))));
+  if (!items.length && !goneM.length) return;
+  const key = m=>{const p=m.userData.p, e=mvAt(p,n); return e ? e.mord : (p.s===n ? p.ord : (p.rord??0))};
+  items.sort((a,b)=>(key(a)-key(b))||((a.userData.p.sub||0)-(b.userData.p.sub||0)));
+  const dur = 2400, keys = [];
+  let t0 = performance.now();
+  let start = 0, k = 0, tend = 0, prev = lastDir();
+  if (goneM.length){
+    if (cv){ const v = viewFor(goneM, cv.vis.concat(goneM), n, cv.fixed, prev, goneM); prev = v.dir; keys.push({t:0, v}); }
+    const gap = Math.min(400, 2000/goneM.length);
+    goneM.forEach((m,j)=>{ const p = m.userData.p, from = m.position.clone();
+      const to = isW(m) ? from.clone() : from.clone().addScaledVector(V3(p.dir||[0,0,1]), p.dist||60);
+      m.userData.a = {t0:j*gap, from, to, pos:from.clone(), spin:isW(m)?0:(p.spin||0), rm:true}; });
+    tend = (goneM.length-1)*gap + dur; start = tend + 250;
+  }
+  items.push(...goneM);
+  while (k < items.length && !items[k].userData.a?.rm){
+    const o = key(items[k]), grp = [];
+    while (k < items.length && !items[k].userData.a?.rm && key(items[k]) === o) grp.push(items[k++]);
+    const together = grp.every(m=>mvAt(m.userData.p,n) || m.userData.p.s!==n);
+    const gap = together ? 0 : Math.min(500, 3000/grp.length);
+    if (cv){
+      if (keys.length) start += CAMT;                           // a pause for the camera to move to this group
+      const v = viewFor(grp, cv.vis, n, cv.fixed, prev, items); prev = v.dir; keys.push({t:start, v});
+    }
+    grp.forEach((m,j)=>{
+      const p = m.userData.p, to = rest(m,n), mvE = mvAt(p,n), moving = !!mvE, w = isW(m);
+      const from = moving ? m.userData.home.clone().add(V3(mvE.off)) : (w ? to.clone() : to.clone().addScaledVector(V3(p.dir), p.dist||60));
+      const a = {t0:start + j*gap, from, to, pos:from.clone(), spin:(moving||w)?0:(p.spin||0)};
+      if (moving && mvE.via) a.via = m.userData.home.clone().add(V3(mvE.via));
+      if (w && p.s===n) a.grow = true;
+      if (w && p.s<n){ const kk = pathAt(m,n); if (kk>0 && p.sm[kk].s===n){ if (p.paths[kk].grow) a.grow = true; else a.morph=[p.sm[kk-1].pts, p.sm[kk].pts]; } }
+      m.userData.a = a;
+    });
+    tend = start + (grp.length-1)*gap + dur;
+    start += (grp.length-1)*gap + dur + 250;
+  }
+  if (cv && keys.length){
+    if (keys.length>1 || stepView.pos.distanceTo(keys[0].v.pos) > 1) keys.push({t:tend+CAMT, v:stepView});
+    camPlan = {keys, end:tend+CAMT};
+    if (!userCam){ flyTo(camAt(FREEZE!=null ? FREEZE : 0)); }
+  }
+  if (tw) t0 += 450;                                   // the camera flies first, then the parts go in
+  anim = ()=>{
+    const t = FREEZE!=null ? FREEZE : performance.now()-t0; let done = FREEZE==null;
+    for (const m of items){
+      const a = m.userData.a; if (!a) continue;
+      const u = Math.min(1, Math.max(0,(t-a.t0)/dur)), e = ease(u);
+      if (u<1) done = false;
+      if (a.rm){
+        a.pos.lerpVectors(a.from, a.to, e);
+        if (isW(m)) { m.geometry.setDrawRange(0, Math.round((1-e)*WSEG)*8*6); }
+        else { m.material.transparent = true; m.material.opacity = 1-e; if (a.spin) m.quaternion.setFromAxisAngle(V3(m.userData.p.ax), e*Math.PI*2*a.spin); }
+        m.visible = u<1; continue;
+      }
+      if (a.via) { if (e<.5) a.pos.lerpVectors(a.from, a.via, e*2); else a.pos.lerpVectors(a.via, a.to, e*2-1); }
+      else a.pos.lerpVectors(a.from, a.to, e);
+      if (a.spin) m.quaternion.setFromAxisAngle(V3(m.userData.p.ax), (1-e)*Math.PI*2*a.spin);
+      if (a.grow){ const seg = Math.round(e*WSEG); m.geometry.setDrawRange(0, seg*8*6); m.visible = u>0; }
+      else if (a.morph){ if (a.lu!==u){ a.lu=u; m.userData.dirty = u<1; setPath(m, a.morph[0].map((v,i)=>v.clone().lerp(a.morph[1][i], e))); } }
+      else m.visible = u>0 || !!mvAt(m.userData.p,n);
+    }
+    if (camPlan && !userCam && !iso && !tw){ setCam(camAt(t)); }
+    if (camPlan && t < camPlan.end) done = false;
+    if (done && FREEZE==null){ items.forEach(m=>{ const rm = m.userData.a?.rm; m.userData.a=null; m.quaternion.identity(); if(isW(m)) m.geometry.setDrawRange(0,Infinity);
+      if (rm){ m.visible = false; if (!isW(m)){ m.material.transparent = !!m.userData.p.ghost; m.material.opacity = m.userData.p.ghost ? .22 : 1; } m.material.emissive.set(0); } }); anim = null; camPlan = null; }
+  };
+}
+$('#play').onclick=()=>go(cur);
+$('#spread').oninput=e=>{spread=e.target.value/100};
+$('#prev').onclick=()=>go(cur-1); $('#next').onclick=()=>go(cur+1);
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.key==='ArrowRight')go(cur+1);if(e.key==='ArrowLeft')go(cur-1);if(e.key==='Escape')closeIso()});
+
+// ---- close-up of one piece or wire
+let saved = null;
+function openIso(label, mesh){
+  const ms = all.filter(m=>m.userData.p.label===label && on(m,cur)); const one = mesh || ms[0] || all.find(m=>m.userData.p.label===label);
+  if (!saved) saved = {pos:cam.position.clone(), tgt:ctl.target.clone()};
+  iso = one; anim = null;
+  all.forEach(m=>{m.visible = m===one; m.position.copy(m.userData.home); m.quaternion.identity(); if(isW(m)){ m.geometry.setDrawRange(0,Infinity); m.material.opacity=1; }});
+  ghosts.forEach(m=>m.visible=false); tables.forEach(m=>m.visible=false);
+  one.material.color.copy(one.userData.base); one.material.emissive.set(0);
+  const p = one.userData.p, st = [...stepsOf[label]].sort((a,b)=>a-b).map(sname);
+  $('#iso-name').textContent = label;
+  $('#iso-meta').innerHTML = (isW(one) ? `Wire. Fitted at ${st.join(', ')}.` : `You need <b>${count[label]}</b>. Used in ${st.length>1?'':'step '}${st.join(', ')}.`)+(p.note?`<br>${p.note}`:'');
+  $('#iso').style.display = 'block'; document.body.classList.add('iso'); camPlan = null; fit([one], 1.3);
+}
+function closeIso(){
+  if (!iso) return; iso = null; $('#iso').style.display='none'; document.body.classList.remove('iso');
+  all.forEach(m=>{m.visible = on(m,cur)}); look(cur); showTables(cur);
+  if (saved){ flyTo({tgt:saved.tgt, pos:saved.pos}); saved=null }
+}
+$('#iso-back').onclick = closeIso;
+
+// ---- hover name, tap for close-up
+const ray = new THREE.Raycaster(), ms = new THREE.Vector2(), tip = $('#tip'); let down=null;
+function pick(e){const r=ren.domElement.getBoundingClientRect();ms.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ms,cam);return ray.intersectObjects(all.filter(m=>m.visible).concat(tables.filter(m=>m.visible)),false)[0]}
+ren.domElement.addEventListener('pointermove',e=>{const h=pick(e);if(h){tip.style.display='block';tip.textContent=h.object.userData.p.label;tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+10+'px'}else tip.style.display='none'});
+ren.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+ren.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const h=pick(e);if(h&&!iso&&!h.object.userData.table)openIso(h.object.userData.p.label,h.object)});
+
+// ---- tools: Re-center (fly back to the step's framing), Names (leader-line labels), full screen (embed)
+$('#recenter').onclick = ()=>{ if (iso) closeIso(); userCam = false; camPlan = null; $('#recenter').classList.remove('hot'); flyTo(stepView); };
+// names of the new parts (and what slides in or comes out), with a leader line; at most 7 per step
+const lblBox = $('#lbl'), lblSvg = lblBox.querySelector('svg'); let tags = [];
+function makeTags(n){
+  lblBox.querySelectorAll('div').forEach(d=>d.remove()); lblSvg.innerHTML = ''; tags = [];
+  const g = {}, rm = {};
+  for (const m of all){ const p = m.userData.p;
+    if (p.u===n){ (rm['Take out: '+p.label] ||= []).push(m); continue; }
+    if (!on(m,n)) continue;
+    const e = mvAt(p,n);
+    if (p.s===n || e){ const k = e && p.s!==n ? (e.mgrp||p.label) : p.label; (g[k] ||= []).push(m); } }
+  const ent = Object.entries(g).map(([k,ms])=>[k,ms,false]).concat(Object.entries(rm).map(([k,ms])=>[k,ms,true]));
+  ent.slice(0, 7).forEach(([k, ms, isRm])=>{
+    const d = document.createElement('div'), one = ms[0], mvG = mvAt(one.userData.p,n) && one.userData.p.s!==n;
+    d.textContent = k + (ms.length>1 && !isW(one) && !mvG ? ' ×'+ms.length : ''); if (isRm) d.className = 'rm';
+    lblBox.appendChild(d);
+    const ln = document.createElementNS('http://www.w3.org/2000/svg','line'), dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('r', 4); lblSvg.append(ln, dot); tags.push({d, ln, dot, ms});
+  });
+}
+const pv = new THREE.Vector3(), cvv = new THREE.Vector3();
+function drawTags(){
+  if (!tags.length) return;
+  const r = lblBox.getBoundingClientRect(), W = r.width, H = r.height, hide = !!iso || spread>.05, placed = [];
+  for (const t of tags){
+    const m = t.ms.find(x=>x.visible) || t.ms[0];
+    if (isW(m)){ const pa = m.geometry.attributes.position, dr = m.geometry.drawRange, cnt = Math.min(pa.count, isFinite(dr.count) ? dr.count : pa.count);
+      pv.fromBufferAttribute(pa, Math.floor(Math.max(1, cnt)*.5)).add(m.position); }
+    else { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); m.geometry.boundingBox.getCenter(pv); pv.add(m.position); }
+    pv.project(cam);
+    const off = hide || !m.visible || pv.z>1 || Math.abs(pv.x)>1.05 || Math.abs(pv.y)>1.05;
+    for (const el of [t.d, t.ln, t.dot]) el.style.display = off ? 'none' : '';
+    if (off) continue;
+    const x = (pv.x+1)/2*W, y = (1-pv.y)/2*H;
+    cvv.set(x-W/2, y-H/2, 0); if (cvv.lengthSq()<1) cvv.set(1,-1,0); cvv.normalize();      // push the name out from the middle
+    const w = t.d.offsetWidth || 80;
+    let lx = THREE.MathUtils.clamp(x+cvv.x*70, w/2+6, Math.max(w/2+6, W-w/2-6)), ly = THREE.MathUtils.clamp(y+cvv.y*50-18, 14, H-70);
+    for (let k=0;k<12 && placed.some(p=>Math.abs(p[0]-lx)<(p[2]+w)/2+6 && Math.abs(p[1]-ly)<22);k++) ly += 24;
+    placed.push([lx, ly, w]);
+    t.d.style.left = lx+'px'; t.d.style.top = ly+'px';
+    t.ln.setAttribute('x1', x); t.ln.setAttribute('y1', y); t.ln.setAttribute('x2', lx); t.ln.setAttribute('y2', ly);
+    t.dot.setAttribute('cx', x); t.dot.setAttribute('cy', y);
+  }
+}
+let showNames = true; try { showNames = localStorage.getItem('st-names')!=='0'; } catch(e){}
+if (qs.get('names')==='0') showNames = false;
+const setNames = v => { showNames = v; document.body.classList.toggle('nolbl', !v); $('#names').setAttribute('aria-pressed', v); $('#names').classList.toggle('on', v); try{localStorage.setItem('st-names', v?'1':'0')}catch(e){} };
+$('#names').onclick = ()=>setNames(!showNames); setNames(showNames);
+$('#fs').onclick = ()=>{ const d = document; if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen||d.webkitExitFullscreen).call(d); else (d.documentElement.requestFullscreen||d.documentElement.webkitRequestFullscreen||(()=>{})).call(d.documentElement); };
+if (!document.fullscreenEnabled && !document.webkitFullscreenEnabled) $('#fs').remove();
+let ready = false, rsz = 0;
+addEventListener('resize', ()=>{ clearTimeout(rsz); rsz = setTimeout(()=>{ if (ready && !userCam && !iso && !anim) go(cur, false); }, 200); });
+const EMBED = qs.get('embed')==='1';
+if (EMBED){ document.body.classList.add('embed'); size(); }
+$('#e-play').onclick=()=>go(cur);
+$('#e-spread').oninput=e=>{spread=e.target.value/100; $('#spread').value=e.target.value};
+// the parent page (Build Manual) changes the step: postMessage({step:'m31'}) or {step:'c-y-wire'}
+addEventListener('message', e=>{ const k = e.data && e.data.step; if (k==null) return;
+  const i = STEPS.findIndex(s=>s.key==k || String(s.n)===String(k)); if (i>=0) go(i, e.data.play!==false); });
+let start = 0; if (!EMBED) try{start = +(localStorage.getItem(META.key)||0)}catch(e){}
+if (qs.get('step')){ const k = STEPS.findIndex(s=>s.key==qs.get('step') || String(s.n)===qs.get('step')); if (k>=0) start = k; }
+if (window.__st0){ const k = STEPS.findIndex(s=>s.key==window.__st0.step || String(s.n)===String(window.__st0.step)); if (k>=0) start = k; }
+if (qs.get('view')) fit.view = qs.get('view').split(',').map(Number);
+go(start, !qs.get('still'));
+if (qs.get('spread')){ spread=+qs.get('spread')/100; $('#spread').value=qs.get('spread'); }
+if (qs.get('iso')) openIso(qs.get('iso'));
+if (qs.get('zoom')){ cam.position.sub(ctl.target).multiplyScalar(+qs.get('zoom')).add(ctl.target); }
+if (qs.get('still') && qs.get('t')!=null) playStep(stepView ? {vis: all.filter(m=>on(m,cur)), fixed: STEPS[cur].view || null} : null);
+flyTo.ok = true; load.remove(); ready = true;
+window.__v = {go, viewFor, all, cam, ctl, THREE, steps:STEPS, get cur(){return cur}, get stepView(){return stepView}, get moving(){return !!tw}};   // test hook
+(function loop(){requestAnimationFrame(loop); if(anim) anim(); place(); tweenCam(); ctl.update();
+  const dist = cam.position.distanceTo(ctl.target); cam.near = Math.max(.05, dist/100); cam.far = dist*30 + 2000; cam.updateProjectionMatrix();
+  s1.position.copy(cam.position); s1.target.position.copy(ctl.target); ren.render(scene,cam); if (showNames) drawTags(); })();
+</script>
+</body>
+</html>
