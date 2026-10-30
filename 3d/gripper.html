@@ -391,10 +391,11 @@ function go(i, play=true){
   const fixed = qs.get('view') ? fit.view : (s.view || null);
   const rer2 = vis.filter(m=>isW(m) && m.userData.p.s<n && m.userData.p.sm.some(pa=>pa.s===n));
   gone.forEach(m=>{ m.position.copy(rest(m, n-1)); m.updateMatrixWorld(true); });
-  const focus = [...new Set([...gone, ...nw, ...mv, ...rer2])];
+  const al = s.also ? vis.filter(m=>s.also.includes(m.userData.p.label)) : [];   // also in view: e.g. the whole power / CAN chain
+  const focus = [...new Set([...gone, ...nw, ...mv, ...rer2, ...al])];
   place(); userCam = false; camPlan = null; tw = null; $('#recenter').classList.remove('hot');
   stepView = null;
-  const core = (nw.length || mv.length) ? [...new Set([...nw, ...mv])] : focus;   // wires that only move to a new path don't steer the end view
+  const core = (nw.length || mv.length) ? [...new Set([...nw, ...mv, ...al])] : focus;   // wires that only move to a new path don't steer the end view
   const follow = play && focus.length && !RM.matches;               // the camera follows each install group
   if (focus.length) stepView = viewFor(core, vis, n, fixed, lastDir(), focus, true);
   else { if (fixed) fit.view = fixed; const fr = vis.filter(m=>!isW(m)); stepView = fitView(fr.length?fr:all); }

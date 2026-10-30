@@ -116,7 +116,7 @@
 <div id="emb"><button id="e-play">▶ Replay</button><label>Spread apart <input type="range" id="e-spread" min="0" max="100" value="0" aria-label="Spread the parts apart"></label></div>
 <div id="hint">Tap a piece or a wire for a close-up. Drag to turn, scroll to zoom.</div>
 <div id="load"><div>Loading the 3D parts…</div><div class="pb"><i></i></div><div class="m"></div></div>
-<script>window.ST_FILE='y_axis_data.js'; window.ST_BYTES=+'3021754'||0; if (new URLSearchParams(location.search).get('embed')==='1') document.body.classList.add('embed');
+<script>window.ST_FILE='y_axis_data.js'; window.ST_BYTES=+'3025426'||0; if (new URLSearchParams(location.search).get('embed')==='1') document.body.classList.add('embed');
   if (/^https?:$/.test(location.protocol)) window.__pk = fetch(window.ST_FILE);   // start the download at once (file:// pages load it with a script tag)
   addEventListener('message', e=>{ if (e.data && e.data.step!=null) window.__st0 = e.data; });   // a step asked for while the parts still load</script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","meshopt":"https://cdn.jsdelivr.net/npm/meshoptimizer@0.22.0/meshopt_decoder.module.js","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js"}}</script>
@@ -391,10 +391,11 @@ function go(i, play=true){
   const fixed = qs.get('view') ? fit.view : (s.view || null);
   const rer2 = vis.filter(m=>isW(m) && m.userData.p.s<n && m.userData.p.sm.some(pa=>pa.s===n));
   gone.forEach(m=>{ m.position.copy(rest(m, n-1)); m.updateMatrixWorld(true); });
-  const focus = [...new Set([...gone, ...nw, ...mv, ...rer2])];
+  const al = s.also ? vis.filter(m=>s.also.includes(m.userData.p.label)) : [];   // also in view: e.g. the whole power / CAN chain
+  const focus = [...new Set([...gone, ...nw, ...mv, ...rer2, ...al])];
   place(); userCam = false; camPlan = null; tw = null; $('#recenter').classList.remove('hot');
   stepView = null;
-  const core = (nw.length || mv.length) ? [...new Set([...nw, ...mv])] : focus;   // wires that only move to a new path don't steer the end view
+  const core = (nw.length || mv.length) ? [...new Set([...nw, ...mv, ...al])] : focus;   // wires that only move to a new path don't steer the end view
   const follow = play && focus.length && !RM.matches;               // the camera follows each install group
   if (focus.length) stepView = viewFor(core, vis, n, fixed, lastDir(), focus, true);
   else { if (fixed) fit.view = fixed; const fr = vis.filter(m=>!isW(m)); stepView = fitView(fr.length?fr:all); }
