@@ -692,7 +692,7 @@ function mount3d(){
     const sync=()=>{const p=$('#v3d'); if(!p||f3d.style.display==='none')return; const r=p.getBoundingClientRect(); Object.assign(f3d.style,{left:r.left+scrollX+'px',top:r.top+scrollY+'px',width:r.width+'px',height:r.height+'px'})};
     addEventListener('scroll',sync,{passive:true}); addEventListener('resize',sync); f3d.sync=sync; new ResizeObserver(sync).observe(document.body); }
   f3d.style.display='block';
-  if(f3d.dataset.page!==pg){ f3d.src=(DATA.stage3d_base||'3d/')+page+'.html?embed=1&step='+encodeURIComponent(key)+(s.whole?'&still=1':''); f3d.dataset.page=pg; }
+  if(f3d.dataset.page!==pg){ f3d.src=(DATA.stage3d_base||'3d/')+page+'.html?embed=1&step='+encodeURIComponent(key)+(s.whole?'&still=1&nofade=1':''); f3d.dataset.page=pg; }
   else if(f3d.dataset.key!==key){ f3d.contentWindow.postMessage({step:key},'*'); }
   f3d.dataset.key=key; f3d.sync();
 }
