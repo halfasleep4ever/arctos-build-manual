@@ -350,15 +350,20 @@ function place(){
     if (!m.visible) continue;
     const a = m.userData.a;
     m.position.copy(a ? a.pos : rest(m, n)).add(spreadOff(m));
-    if (isW(m)) m.material.opacity = spread ? .35 : 1;
+    if (isW(m)) m.material.opacity = faded.has(m) ? .06 : spread ? .35 : 1;
   }
   for (const m of ghosts) m.visible = !spread;
   for (const m of tables) m.visible = !spread && !!m.userData.show;
 }
+const NEWC = new THREE.Color(0xe2502a);
 function look(n){
   all.forEach(m=>{ const p=m.userData.p;
-    m.material.color.copy(m.userData.base);
-    m.material.emissive.set(p.s===n ? (isW(m) ? m.userData.base.clone().multiplyScalar(.45) : 0x8a4200) : (mvAt(p,n) ? 0x5a2c00 : 0)); });
+    // like the official viewer: new parts a strong red-orange, everything already in a darker grey (wires keep their colours)
+    const nw = p.s===n || !!mvAt(p,n);
+    if (isW(m)) m.material.color.copy(m.userData.base);
+    else if (nw) m.material.color.copy(m.userData.base).lerp(NEWC, .8);
+    else m.material.color.copy(m.userData.base).multiplyScalar(.62);
+    m.material.emissive.set(p.s===n ? (isW(m) ? m.userData.base.clone().multiplyScalar(.45) : 0x3a0c00) : (mvAt(p,n) ? 0x2a0800 : 0)); });
 }
 function go(i, play=true){
   cur = Math.max(0, Math.min(STEPS.length-1, i)); closeIso();
@@ -462,14 +467,14 @@ function boxDist(b, dir, pad=1.12){
 const CAM = qs.get('cam') || 'group';
 // the best view of some items (at their rest places; pieces that move in also count at their build spot)
 function viewFor(focus, vis, n, fixed, prefer, occl, final){
-  const box = new THREE.Box3(), pts = [], tmp = new THREE.Box3(), mvd = new THREE.Vector3();
+  const box = new THREE.Box3(), pts = [], own = [], tmp = new THREE.Box3(), mvd = new THREE.Vector3();
   for (const m of focus){
     m.updateMatrixWorld(true); tmp.setFromObject(m); if (tmp.isEmpty()) continue;
     box.union(tmp);
     // sample the side of the piece it goes in from (a bolt's head, not its shank inside the hole)
     const c = tmp.getCenter(new THREE.Vector3()), sz = tmp.getSize(new THREE.Vector3()), dv = isW(m) ? null : V3(m.userData.p.dir||[0,0,0]);
     if (dv && dv.length()>.5 && m.userData.p.kind!=='printed'){ dv.normalize(); c.addScaledVector(dv, Math.abs(sz.x*dv.x)/2+Math.abs(sz.y*dv.y)/2+Math.abs(sz.z*dv.z)/2+3); }
-    pts.push(c);
+    pts.push(c); own.push(m);
     const e = mvAt(m.userData.p, n);
     if (e && !final){ box.union(tmp.clone().translate(V3(e.off))); mvd.add(V3(e.off)); }
     // a new part slides in from dir*dist: keep its start spot in the frame too, so the whole slide is seen
@@ -485,24 +490,28 @@ function viewFor(focus, vis, n, fixed, prefer, occl, final){
   let fb;
   if (CAM==='group0') fb = box.clone().expandByScalar(Math.max(60, 0.35*Math.max(sz.x,sz.y,sz.z)));
   else {   // a little of the arm around the new parts: grow by 12 mm / 15 %, and to at least 18 % of the stage (>= 25 mm radius)
-    fb = box.clone().expandByScalar(Math.max(12, 0.15*Math.max(sz.x,sz.y,sz.z)));
-    const rAll = allB0(vis).getSize(new THREE.Vector3()).length()/2, rMin = Math.max((final ? .18 : .25)*rAll, 25), r0 = fb.getSize(new THREE.Vector3()).length()/2;
+    fb = box.clone().expandByScalar(final ? Math.max(6, 0.08*Math.max(sz.x,sz.y,sz.z)) : Math.max(12, 0.15*Math.max(sz.x,sz.y,sz.z)));
+    // the end view is tight (the new parts fill about half the screen, as in the official viewer); group views keep more context
+    const rAll = allB0(vis).getSize(new THREE.Vector3()).length()/2, rMin = Math.max((final ? .09 : .25)*rAll, final ? 18 : 25), r0 = fb.getSize(new THREE.Vector3()).length()/2;
     if (r0 < rMin) fb.expandByScalar((rMin - r0)/Math.sqrt(3));
   }
   const tgt = fb.getCenter(new THREE.Vector3()), r = fb.getSize(new THREE.Vector3()).length()/2;
   const d = r*1.05/Math.sin(THREE.MathUtils.degToRad(cam.fov/2));
   const raise = h=>{ h = h.clone(); h.z = 0; if (h.length()<1e-3) h.set(.75,-.55,0); h.normalize(); return new THREE.Vector3(h.x*Math.cos(UPA), h.y*Math.cos(UPA), Math.sin(UPA)); };
-  const fs = new Set(occl || focus), occ = vis.filter(m=>!isW(m) && !fs.has(m));
-  const smp = pts.length>14 ? pts.filter((_,i)=>i%Math.ceil(pts.length/14)===0) : pts;
+  const fs = new Set(occl || focus), occ = vis.filter(m=>!isW(m) && !fs.has(m)).concat(tables.filter(t=>t.visible));   // a table never turns see-through: the camera must not look through it
+  const si = pts.map((_,i)=>i).filter(i=>pts.length<=14 || i%Math.ceil(pts.length/14)===0), smp = si.map(i=>pts[i]);
   // a sample is hidden if a part lies between it and the camera: rays camera -> sample, and (for a camera standing
-  // inside a part, where those rays only meet back faces) sample -> camera
-  const hidden = cp=>{ let k = 0; for (const p of smp){ const to = p.clone().sub(cp), L = to.length(); to.normalize(); rc.set(cp, to); rc.far = L-2;
-    if (rc.intersectObjects(occ, false).length){ k++; continue; }
-    rc.set(p.clone().addScaledVector(to, -1), to.clone().negate()); rc.far = L-3; if (rc.intersectObjects(occ, false).length) k++; } return k; };
+  // inside a part, where those rays only meet back faces) sample -> camera. Blockers: older parts, tables, the step's
+  // other new parts (they never turn see-through) and wires in the end view (they never do either).
+  const nf = focus.filter(m=>!isW(m) && m.visible), occA = occ.concat(nf.filter(m=>!occ.includes(m)), final ? vis.filter(m=>isW(m) && m.visible && !focus.includes(m)) : []);
+  const cost = (hs, me)=>hs.some(h=>h.object!==me) ? 1 : 0;
+  const hidden = cp=>{ let k = 0; smp.forEach((p, j)=>{ const me = own[si[j]], to = p.clone().sub(cp), L = to.length(); to.normalize(); rc.set(cp, to); rc.far = L-2;
+    const c1 = cost(rc.intersectObjects(occA, false), me); if (c1){ k += c1; return; }
+    rc.set(p.clone().addScaledVector(to, -1), to.clone().negate()); rc.far = L-3; k += cost(rc.intersectObjects(occA, false), me); }); return k; };
   // the tight box fit; if parts are in the way from there (the camera sits behind a wall), step back (x1.5, x2.2)
-  const dists = v=>{ const d0 = boxDist(fb, v); return CAM==='group0' ? [d] : [d0, d0*1.5, d0*2.2]; };
+  const dists = v=>{ const d0 = boxDist(fb, v); return CAM==='group0' ? [d] : final ? [d0] : [d0, d0*1.5, d0*2.2]; };   // end view: stay close, blockers turn see-through
   const bestD = v=>{ const ds = dists(v); let bd = null, bk = 1e9; for (const dd of ds){ const k = hidden(tgt.clone().addScaledVector(v, dd)); if (k < bk){ bk = k; bd = dd; } if (!k) break; }
-    if (bk >= smp.length) bd = ds[ds.length-1];      // hidden from every distance (inside a holder): show more of the arm around it
+    if (bk >= smp.length - 1e-6) bd = ds[ds.length-1];      // hidden from every distance (inside a holder): show more of the arm around it
     return [bd, bk]; };
   let dir, dd;
   if (fixed){ dir = V3(fixed).normalize(); dd = bestD(dir)[0]; }
@@ -516,14 +525,18 @@ function viewFor(focus, vis, n, fixed, prefer, occl, final){
     for (let a=0; a<8; a++){ const h = new THREE.Vector3(Math.cos(a*Math.PI/4+Math.PI/8), Math.sin(a*Math.PI/4+Math.PI/8), 0); cands.push(raise(h)); }
     for (let a=0; a<8; a++){ const h = new THREE.Vector3(Math.cos(a*Math.PI/4+Math.PI/8), Math.sin(a*Math.PI/4+Math.PI/8), 0);
       cands.push(new THREE.Vector3(h.x*Math.cos(2*UPA), h.y*Math.cos(2*UPA), Math.sin(2*UPA))); }
+    const fd = new THREE.Vector3(); focus.forEach(m=>{ if (!isW(m) && m.userData.p.dir) fd.add(V3(m.userData.p.dir).normalize()); });
+    const face = fd.length()>.5 ? fd.normalize() : null;           // the side the new parts go in from = their face
+    if (face && Math.abs(face.z) > .9) face.add(new THREE.Vector3(.3, -.22, 0)).normalize();   // never straight down: the up axis would flip
+    if (face && final){ cands.unshift(face.clone()); for (const t of [.35, -.35]) cands.unshift(face.clone().add(new THREE.Vector3(0,0,t)).normalize()); }
     let bs = 1e9;
-    for (const v of cands){ const [d1, k] = bestD(v), sc = k + (md ? 1.5*Math.abs(v.dot(md)) : 0);
-      if (sc < bs - 1e-6){ bs = sc; dir = v; dd = d1; } if (sc===0) break; }
+    for (const v of cands){ const [d1, k] = bestD(v), sc = k + (md ? 1.5*Math.abs(v.dot(md)) : 0) - (face && final ? .8*Math.max(0, v.dot(face)) : 0);
+      if (sc < bs - 1e-6){ bs = sc; dir = v; dd = d1; } }
   }
   lastFocus = fc; fit.view = null;
   return {tgt, pos:tgt.clone().addScaledVector(dir, dd), d:dd, dir};
 }
-// ---- see-through: parts between the camera and what the step is about fade to 15 %, so nothing blocks the view.
+// ---- see-through: parts between the camera and what the step is about fade to 6 %, so nothing blocks the view.
 // Rays go from the camera to the centre and 8 inner corners of each focus piece (and of its slide-in start spot).
 // Wires and the focus pieces never fade. Set again for each camera move, and after the reader turns the view.
 let faded = new Set(), fadeFocus = [];
@@ -534,11 +547,11 @@ function setFade(ms){
 }
 function fadeOne(m, f){
   if (m.userData.p.ghost) return;
-  m.material.transparent = f; m.material.opacity = f ? .15 : 1; m.material.depthWrite = !f;
-  m.children.forEach(c=>{ if (c.material){ c.userData.op ??= c.material.opacity; c.material.opacity = f ? c.userData.op*.25 : c.userData.op; } });
+  m.material.transparent = f || isW(m); m.material.opacity = f ? .06 : 1; m.material.depthWrite = !f;   // wires stay transparent-capable (spread)
+  m.children.forEach(c=>{ if (c.isLineSegments || c.isMesh) c.visible = !f; });   // a faint ghost: no outlines, no board details on top
 }
 function fadeFor(campos, focus, n){
-  const fs = new Set(focus), occ = all.filter(m=>m.visible && !isW(m) && !fs.has(m) && !m.userData.p.ghost && !(m.userData.a && m.userData.a.rm));
+  const fs = new Set(focus), occ = all.filter(m=>m.visible && (!isW(m) || m.userData.p.s<n) && !fs.has(m) && !m.userData.p.ghost && !(m.userData.a && m.userData.a.rm));
   const pts = [], tmp = new THREE.Box3();
   for (const m of focus){ if (isW(m)) continue;
     m.updateMatrixWorld(true); tmp.setFromObject(m); if (tmp.isEmpty()) continue;
