@@ -743,7 +743,17 @@ function makeTags(n){
 const pv = new THREE.Vector3(), cvv = new THREE.Vector3();
 function drawTags(){
   if (!tags.length) return;
-  const r = lblBox.getBoundingClientRect(), W = r.width, H = r.height, hide = !!iso || spread>.05, placed = [];
+  const r = lblBox.getBoundingClientRect(), W = r.width, H = r.height, hide = !!iso || spread>.05;
+  // no overlaps, ever (Kai 2026-11-06): every label is a real rectangle; it may not touch another label, another
+  // label's dot or any on-screen control (tools, Replay / Spread bar, MOD tag, hint). No free spot = not shown.
+  const GAP = 5, boxes = [];
+  for (const el of document.querySelectorAll('#tools, .tools, #emb, #modtag, #hint, #fs, #names, #recenter')){
+    if (!el || el.offsetParent === null && getComputedStyle(el).position !== 'fixed') continue;
+    const q = el.getBoundingClientRect(); if (q.width && q.height && getComputedStyle(el).display !== 'none')
+      boxes.push([q.left - r.left - GAP, q.top - r.top - GAP, q.right - r.left + GAP, q.bottom - r.top + GAP]); }
+  const hit = (a) => a[0] < 2 || a[1] < 2 || a[2] > W - 2 || a[3] > H - 2 || boxes.some(b => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]);
+  const anchors = [];
+  for (const t of tags){ const m = t.ms.find(x=>x.visible) || t.ms[0]; t._m = m; }
   for (const t of tags){
     const m = t.ms.find(x=>x.visible) || t.ms[0];
     if (isW(m)){ const pa = m.geometry.attributes.position, dr = m.geometry.drawRange, cnt = Math.min(pa.count, isFinite(dr.count) ? dr.count : pa.count);
@@ -755,10 +765,17 @@ function drawTags(){
     if (off) continue;
     const x = (pv.x+1)/2*W, y = (1-pv.y)/2*H;
     cvv.set(x-W/2, y-H/2, 0); if (cvv.lengthSq()<1) cvv.set(1,-1,0); cvv.normalize();      // push the name out from the middle
-    const w = t.d.offsetWidth || 80;
-    let lx = THREE.MathUtils.clamp(x+cvv.x*70, w/2+6, Math.max(w/2+6, W-w/2-6)), ly = THREE.MathUtils.clamp(y+cvv.y*50-18, 14, H-70);
-    for (let k=0;k<12 && placed.some(p=>Math.abs(p[0]-lx)<(p[2]+w)/2+6 && Math.abs(p[1]-ly)<22);k++) ly += 24;
-    placed.push([lx, ly, w]);
+    const w = t.d.offsetWidth || 80, h = t.d.offsetHeight || 22;
+    boxes.push([x - 6, y - 6, x + 6, y + 6]);                          // this label's own dot: no other label on it
+    // candidates: first the outward push (as before), then rings of 16 directions further and further out
+    const cands = [[x + cvv.x*70, y + cvv.y*50 - 18]];
+    const a0 = Math.atan2(cvv.y, cvv.x);
+    for (const R of [46, 70, 100, 135, 175, 220]) for (let k = 0; k < 16; k++){ const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 8;   // nearest to the outward side first
+      cands.push([x + Math.cos(a) * R * 1.3, y + Math.sin(a) * R]); }
+    let best = null;
+    for (const [cx, cy] of cands){ const a = [cx - w/2 - GAP, cy - h/2 - GAP, cx + w/2 + GAP, cy + h/2 + GAP]; if (!hit(a)){ best = [cx, cy, a]; break; } }
+    if (!best){ t.d.style.display = 'none'; t.ln.style.display = 'none'; continue; }                 // nowhere free: leave the name out (tap the part for it)
+    boxes.push(best[2]); const lx = best[0], ly = best[1];
     t.d.style.left = lx+'px'; t.d.style.top = ly+'px';
     t.ln.setAttribute('x1', x); t.ln.setAttribute('y1', y); t.ln.setAttribute('x2', lx); t.ln.setAttribute('y2', ly);
     t.dot.setAttribute('cx', x); t.dot.setAttribute('cy', y);
