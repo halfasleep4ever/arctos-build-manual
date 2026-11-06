@@ -362,7 +362,9 @@ function place(){
 }
 const NEWC = new THREE.Color(0xe2502a), MODC = new THREE.Color(0x7b3fd6);
 // Daniel's 5 mods: a part from a mod file has a label ending in "mod)" ("X pulley (HTD mod)"): purple, new or already in
-const isMod = p => /mod\)$/.test(p.label||'');
+// only the mod parts that were printed (print/arctos_mods_U1.3mf: mods 5800, 8410, 6680, 8408). Not printed: the Y gearbox
+// zero-backlash mod (8343: Y disks + covers) and the bought M5x55 bolt of the A stiffer mod (Kai, 2026-11-06)
+const isMod = p => /mod\)$/.test(p.label||'') && !/^(Cycloidal disk \d|Y gearbox [LR] cover) \(|^Bolt /.test(p.label);
 function look(n){
   all.forEach(m=>{ const p=m.userData.p;
     // like the official viewer: new parts a strong red-orange, everything already in a darker grey (wires keep their colours)
