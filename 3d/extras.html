@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>Extra Encoders 3D</title>
 <style>
   :root{--bg:#eeeeee;--ink:#1a1a1a;--mute:#6b6b6b;--line:#c9ced6;--card:#ffffff;--new:#e07a00;--mod:#7b3fd6}
@@ -99,6 +100,15 @@
     #iso{left:8px;right:8px;width:auto;top:8px}
     #hint{display:none}
   }
+
+  /* polish layer (Kai 2026-11-06): same shapes as the manual: 4 px corners, square callouts, quiet chips */
+  button{border-radius:4px}
+  .txt .call{border-left-width:3px;border-radius:0;padding:8px 12px}
+  #lbl div{border-radius:4px;border-width:1px;padding:2px 8px;font-weight:500;box-shadow:0 1px 0 rgba(26,26,26,.08)}
+  #lbl div.mod{border-width:1.5px}
+  #iso,#modtag,#emb label{border-radius:4px}
+  #tip{border-radius:4px}
+  :focus-visible{outline:2px solid var(--new);outline-offset:2px}
 </style>
 </head>
 <body>

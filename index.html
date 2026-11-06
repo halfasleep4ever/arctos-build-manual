@@ -256,6 +256,54 @@ body.lb-open .lb{display:flex} body.lb-open .scrim{display:none}
   .wsall .cc{font-size:6pt} .wsall .cc a,.wsall .ccl{display:none} .wsall .ccp{display:inline}
 }
 .wmini{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:14px 0 6px;padding:10px 12px;border:1px solid #cfcfcf;border-radius:8px;background:#fafafa}.wm{display:flex;gap:8px;align-items:center}.wm b{display:block;font-size:14px}.wm .wd2{font-size:12.5px;color:#555}.wm-t{flex-basis:100%;font-size:12.5px;color:#555}
+
+/* ===== professional polish layer (Kai 2026-11-06). Same identity (Plex, paper, ink, one orange accent);
+   tightens the controls, frames and phone layout. Later rules win over the ones above. ===== */
+:root{--r:4px;--sp1:4px;--sp2:8px;--sp3:12px;--sp4:16px;--sp5:24px;--mod:#6f3fc4;--modbg:#f2edfa;--ring:var(--wire)}
+/* top bar: logo left, tools right */
+.bar .tb:first-of-type{margin-left:auto}
+.find+.tb{margin-left:0}
+.tb{border-radius:var(--r);min-height:36px;padding:6px 14px;font-weight:500}
+.tb.bad{border-color:var(--rule);color:var(--ink2)} .tb.bad:hover{border-color:var(--bad);color:var(--bad);background:#fff}
+/* picture tabs: a clean segmented row with an ink underline */
+.vtabs{gap:2px;margin-bottom:0;border-bottom:1px solid var(--ink)}
+.vtabs button{border:0;border-bottom:3px solid transparent;background:transparent;padding:8px 12px 6px;font-size:13px;font-weight:500;color:var(--muted);margin:0;min-height:40px;border-radius:0}
+.vtabs button:hover{color:var(--ink)}
+.vtabs button.on{background:transparent;color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+.vbox{border-top:0}
+/* empty / poster frame: a drafting-sheet grid instead of a blank box; one clear button */
+.p3d{background-color:var(--sheet);background-image:linear-gradient(var(--rule2) 1px,transparent 1px),linear-gradient(90deg,var(--rule2) 1px,transparent 1px);background-size:24px 24px}
+.p3d img{opacity:.35}
+.p3d .go3d{flex-direction:row;gap:10px;font-size:15px;font-weight:600;padding:12px 20px;border:1px solid var(--ink);border-radius:var(--r);background:var(--ink);color:#fff;box-shadow:none}
+.p3d .go3d small{font-size:12.5px;font-weight:400;color:#cfd2d6}
+.p3d .go3d:hover{background:#000}.p3d .go3d:hover small{color:#e6e6e6}
+/* callouts: one shape for all (square edge, quiet tint, small caps title) */
+.callout{border-left-width:3px;border-radius:0;padding:10px 14px;margin:16px 0}
+.callout-title{font-size:12px;letter-spacing:.08em}
+.callout.mod{border-color:var(--mod);background:var(--modbg)} .callout.mod .callout-title{color:var(--mod)}
+/* bottom bar: Back / Problem quiet, a real progress readout in the middle, Next the one strong button */
+.nb{border-radius:var(--r);min-height:44px;padding:10px 18px;font-weight:500}
+.nb.bad{border-color:transparent;color:var(--muted);background:transparent}
+.nb.bad:hover:not(:disabled){color:var(--bad);border-color:var(--bad);background:#fff}
+.nb.go{padding:10px 22px}
+.nav .cnt{display:flex;flex-direction:column;align-items:center;gap:5px;font-family:var(--sans);font-size:13px;min-width:180px}
+.nav .cnt .pg{display:block;width:180px;height:4px;background:var(--rule2);border-radius:2px;overflow:hidden}
+.nav .cnt .pg i{display:block;height:100%;background:var(--ink)}
+.nav .cnt b{font-family:var(--mono);font-size:14px}
+html,body{overflow-x:clip}
+.p3d:has(img){background-image:none}
+.p3d .go3d{flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);text-align:center}
+#main>*{min-width:0}
+/* phone: the picture gets a fixed share of the screen so the step text starts above the fold */
+@media (max-width:560px){
+  .vbox{min-height:0} #v3d,.vbox.v3d{height:44svh!important;min-height:220px}
+  .vbox img{max-height:38svh} .vbox svg{max-height:44svh}
+  .num{font-size:40px} .txt h1{font-size:20px;line-height:1.25}
+  .nav .cnt{min-width:0} .nav .cnt .pg{width:90px}
+  .nb{padding:10px 12px}
+  .p3d .go3d{flex-direction:column;gap:2px}
+  .bar .tb{padding:6px 10px;font-size:13px}
+}
 </style>
 </head>
 <body>
@@ -768,7 +816,7 @@ function render(i){
    </div>`;
   fixLinks($('#main')); glossify($('#main .txt')); if(s.conn) swatches($('#main .txt')); $$('#main .side .help .fx, #main .side .help summary').forEach(glossify);
   const on=$('#chap .on'); if(on){const c=$('#chap');c.scrollLeft=on.offsetLeft-c.clientWidth/2+on.clientWidth/2}
-  $('#cnt').innerHTML=`<b>${pIdx+1}</b> / ${nv}<br>${isDone?'✓ done':esc(st.short)}`;
+  $('#cnt').innerHTML=`<span><b>${pIdx+1}</b> of ${nv} · ${isDone?'✓ done':esc(st.short)}</span><span class="pg"><i style="width:${((pIdx+1)/nv*100).toFixed(1)}%"></i></span>`;
   $('[data-mv="-1"]').disabled=!pIdx; $('[data-mv="1"]').disabled=pIdx>=nv-1;
   $('[data-done]').innerHTML=(isDone||simple?'Next →':'Done, next →')+'<kbd>Enter</kbd>';
   document.title=(s.kind==='step'?'Step '+s.n:s.title)+' · Arctos Build Manual';
