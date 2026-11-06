@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Covers 3D</title>
 <style>
-  :root{--bg:#eeeeee;--ink:#1a1a1a;--mute:#6b6b6b;--line:#c9ced6;--card:#ffffff;--new:#e07a00}
+  :root{--bg:#eeeeee;--ink:#1a1a1a;--mute:#6b6b6b;--line:#c9ced6;--card:#ffffff;--new:#e07a00;--mod:#7b3fd6}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif}
   #view{position:fixed;inset:0 0 0 360px}
@@ -75,6 +75,11 @@
   #lbl circle{fill:var(--new);stroke:#fff;stroke-width:1.5}
   #lbl div{position:absolute;background:#fff;border:1.5px solid var(--new);color:var(--ink);font-size:12px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-50%)}
   #lbl div.rm{border-color:#c62828;color:#c62828}
+  #lbl div.mod{border-color:var(--mod);border-width:2px}
+  .mb{display:inline-block;background:var(--mod);color:#fff;font-size:10px;font-weight:800;letter-spacing:.06em;border-radius:3px;padding:0 4px;margin-right:5px;vertical-align:1px}
+  .txt .call.modc{border-left-color:var(--mod);background:#f3edfc}
+  #modtag{position:fixed;left:10px;top:10px;z-index:3;display:none;background:#fff;border:2px solid var(--mod);border-radius:6px;padding:4px 9px;font-size:12px;font-weight:600;max-width:60%}
+  body:not(.embed) #modtag{display:none!important}
   body.embed #lbl{inset:0}
   body.nolbl #lbl{display:none}
   @media (max-width:760px){
@@ -98,7 +103,7 @@
 </head>
 <body>
 <div id="view"></div>
-<div id="lbl"><svg></svg></div>
+<div id="lbl"><svg></svg></div><div id="modtag"></div>
 <div class="panel">
   <h1 id="h1"></h1>
   <div class="steps" id="steps"></div>
@@ -310,7 +315,7 @@ const hex = c => '#'+c.getHex().toString(16).padStart(6,'0');
 function listHTML(ms, isNew){
   const g = {}; for (const m of ms){const l=m.userData.p.label;(g[l] ||= []).push(m)}
   return Object.entries(g).map(([l,a])=>{ const w=isW(a[0]);
-    return `<li class="${isNew?'new':''}" ${w?'data-w':'data-l'}="${l}"><span class="sw${w?' w':''}" style="background:${hex(a[0].userData.sw||a[0].userData.base)}"></span><b>${l}</b><span class="n">${w?'wire':'×'+a.length}</span></li>`}).join('');
+    return `<li class="${isNew?'new':''}" ${w?'data-w':'data-l'}="${l}"><span class="sw${w?' w':''}" style="background:${hex(a[0].userData.sw||a[0].userData.base)}"></span><b>${isMod(a[0].userData.p)?'<span class="mb">MOD</span>':''}${l}</b><span class="n">${w?'wire':'×'+a.length}</span></li>`}).join('');
 }
 function fitView(objs, pad=1.12){
   const b = new THREE.Box3(); objs.forEach(o=>b.expandByObject(o));
@@ -355,23 +360,29 @@ function place(){
   for (const m of ghosts) m.visible = !spread;
   for (const m of tables) m.visible = !spread && !!m.userData.show;
 }
-const NEWC = new THREE.Color(0xe2502a);
+const NEWC = new THREE.Color(0xe2502a), MODC = new THREE.Color(0x7b3fd6);
+// Daniel's 5 mods: a part from a mod file has a label ending in "mod)" ("X pulley (HTD mod)"): purple, new or already in
+const isMod = p => /mod\)$/.test(p.label||'');
 function look(n){
   all.forEach(m=>{ const p=m.userData.p;
     // like the official viewer: new parts a strong red-orange, everything already in a darker grey (wires keep their colours)
     const nw = p.s===n || !!mvAt(p,n);
     if (isW(m)) m.material.color.copy(m.userData.base);
-    else if (nw) m.material.color.copy(m.userData.base).lerp(NEWC, .8);
+    else if (nw) m.material.color.copy(m.userData.base).lerp(isMod(p) ? MODC : NEWC, .8);
+    else if (isMod(p)) m.material.color.copy(m.userData.base).multiplyScalar(.62).lerp(MODC, .45);
     else m.material.color.copy(m.userData.base).multiplyScalar(.62);
-    m.material.emissive.set(p.s===n ? (isW(m) ? m.userData.base.clone().multiplyScalar(.45) : 0x3a0c00) : (mvAt(p,n) ? 0x2a0800 : 0)); });
+    m.material.emissive.set(p.s===n ? (isW(m) ? m.userData.base.clone().multiplyScalar(.45) : isMod(p) ? 0x1c0838 : 0x3a0c00) : (mvAt(p,n) ? 0x2a0800 : 0)); });
 }
 function go(i, play=true){
   cur = Math.max(0, Math.min(STEPS.length-1, i)); closeIso();
   const s = STEPS[cur], n = cur, ordr = (a,b)=>(a.userData.p.ord-b.userData.p.ord)||(a.userData.p.sub-b.userData.p.sub);
   [...sb.children].forEach((b,k)=>b.classList.toggle('on',k===cur));
   $('#st-kind').textContent = s.kind==='card' ? 'CARD · '+s.card : 'MANUAL STEP '+s.n;
-  $('#st-title').textContent = s.title; $('#st-text').innerHTML = s.text;
+  $('#st-title').textContent = s.title;
   const vis = all.filter(m=>on(m,n)), nw = vis.filter(m=>m.userData.p.s===n).sort(ordr);
+  const mods = [...new Set(nw.filter(m=>!isW(m) && isMod(m.userData.p)).map(m=>m.userData.p.label))];
+  $('#st-text').innerHTML = (mods.length ? `<div class="call modc"><b>Mod part${mods.length>1?'s':''}</b>: use the mod version, not the stock part: ${mods.join(', ')}.</div>` : '') + s.text;
+  { const mt = $('#modtag'); mt.innerHTML = mods.length ? `<span class="mb">MOD</span>${mods.join(', ')}` : ''; mt.style.display = mods.length ? 'block' : 'none'; }
   const mv = vis.filter(m=>mvAt(m.userData.p,n));
   anim = null;                                          // cancel what was still moving (morphs, removals)
   setFade(new Set()); fadeFocus = [];
@@ -678,7 +689,7 @@ function openIso(label, mesh){
   one.material.color.copy(one.userData.base); one.material.emissive.set(0);
   const p = one.userData.p, st = [...stepsOf[label]].sort((a,b)=>a-b).map(sname);
   $('#iso-name').textContent = label;
-  $('#iso-meta').innerHTML = (isW(one) ? `Wire. Fitted at ${st.join(', ')}.` : `You need <b>${count[label]}</b>. Used in ${st.length>1?'':'step '}${st.join(', ')}.`)+(p.note?`<br>${p.note}`:'');
+  $('#iso-meta').innerHTML = (isW(one) ? `Wire. Fitted at ${st.join(', ')}.` : `You need <b>${count[label]}</b>. Used in ${st.length>1?'':'step '}${st.join(', ')}.`)+(isMod(p)?'<br><span class="mb">MOD</span>Use the mod version of this part, not the stock one.':'')+(p.note?`<br>${p.note}`:'');
   $('#iso').style.display = 'block'; document.body.classList.add('iso'); camPlan = null; fit([one], 1.3);
 }
 function closeIso(){
@@ -691,7 +702,7 @@ $('#iso-back').onclick = closeIso;
 // ---- hover name, tap for close-up
 const ray = new THREE.Raycaster(), ms = new THREE.Vector2(), tip = $('#tip'); let down=null;
 function pick(e){const r=ren.domElement.getBoundingClientRect();ms.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ms,cam);return ray.intersectObjects(all.filter(m=>m.visible).concat(tables.filter(m=>m.visible)),false)[0]}
-ren.domElement.addEventListener('pointermove',e=>{const h=pick(e);if(h){tip.style.display='block';tip.textContent=h.object.userData.p.label;tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+10+'px'}else tip.style.display='none'});
+ren.domElement.addEventListener('pointermove',e=>{const h=pick(e);if(h){tip.style.display='block';tip.textContent=(isMod(h.object.userData.p)?'MOD · ':'')+h.object.userData.p.label;tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+10+'px'}else tip.style.display='none'});
 ren.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
 ren.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;const h=pick(e);if(h&&!iso&&!h.object.userData.table)openIso(h.object.userData.p.label,h.object)});
 
@@ -711,6 +722,7 @@ function makeTags(n){
   ent.slice(0, 7).forEach(([k, ms, isRm])=>{
     const d = document.createElement('div'), one = ms[0], mvG = mvAt(one.userData.p,n) && one.userData.p.s!==n;
     d.textContent = k + (ms.length>1 && !isW(one) && !mvG ? ' ×'+ms.length : ''); if (isRm) d.className = 'rm';
+    else if (!mvG && !isW(one) && isMod(one.userData.p)){ d.className = 'mod'; d.insertAdjacentHTML('afterbegin', '<span class="mb">MOD</span>'); }
     lblBox.appendChild(d);
     const ln = document.createElementNS('http://www.w3.org/2000/svg','line'), dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
     dot.setAttribute('r', 4); lblSvg.append(ln, dot); tags.push({d, ln, dot, ms});
