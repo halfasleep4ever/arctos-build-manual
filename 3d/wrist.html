@@ -131,7 +131,8 @@
 <div id="emb"><button id="e-play">▶ Replay</button><label>Spread apart <input type="range" id="e-spread" min="0" max="100" value="0" aria-label="Spread the parts apart"></label></div>
 <div id="hint">Tap a piece or a wire for a close-up. Drag to turn, scroll to zoom.</div>
 <div id="load"><div>Loading the 3D parts…</div><div class="pb"><i></i></div><div class="m"></div></div>
-<script>window.ST_FILE='wrist_data.js'; window.ST_BYTES=+'7302426'||0; if (new URLSearchParams(location.search).get('embed')==='1') document.body.classList.add('embed');
+<script>window.VIEWFIX={}; document.write('<script src="'+'wrist_data.js'.replace('_data.js','_data_views.js')+'"><\/script>');</script>
+<script>window.ST_FILE='wrist_data.js'; window.ST_BYTES=+'7466970'||0; if (new URLSearchParams(location.search).get('embed')==='1') document.body.classList.add('embed');
   if (/^https?:$/.test(location.protocol)) window.__pk = fetch(window.ST_FILE);   // start the download at once (file:// pages load it with a script tag)
   addEventListener('message', e=>{ if (e.data && e.data.step!=null) window.__st0 = e.data; });   // a step asked for while the parts still load</script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","meshopt":"https://cdn.jsdelivr.net/npm/meshoptimizer@0.22.0/meshopt_decoder.module.js","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js"}}</script>
@@ -190,6 +191,17 @@ let D;
 try { [D] = await Promise.all([getData(), MeshoptDecoder.ready]); }
 catch (e){ load.classList.add('err'); load.innerHTML = '<div>Could not load the 3D view.</div><div class="m">'+String(e.message||e)+'</div>'; throw e; }
 prog(1, 'Building the parts…'); await new Promise(r=>requestAnimationFrame(()=>setTimeout(r)));
+// one name for one thing (same rules as make_site.py tidy_names): KY-003, centre, NEMA, Bolt M3x10, no CAD ' v2'
+const tidyN = s => typeof s !== 'string' ? s : s.replace(/\bKYD-?003\b/g, 'KY-003').replace(/\bcenter(s?)\b/g, 'centre$1').replace(/\bCenter(s?)\b/g, 'Centre$1')
+  .replace(/\bNema_(\d+)_(\d+)mm\b/g, 'NEMA $1 ($2 mm)').replace(/\bNema\b/g, 'NEMA').replace(/\b(Bolt|Nut|Screw|Rod|Pin) (M\d+(?:\.\d+)?) (\d+) ?mm\b/g, '$1 $2x$3')
+  .replace(/(\w) v2\b/g, '$1').replace(/\bask Kai\b/g, 'ask for help')
+  .replace(/Made up: the CAD has no (?:detailed )?model\.?/g, 'Drawn for this manual (the CAD has no model of it).').replace(/\bMade up\./g, 'Drawn for this manual.').replace(/\bMade up\b/g, 'Drawn for this manual');
+for (const s of D.steps){ s.title = tidyN(s.title); s.text = tidyN(s.text); if (s.also) s.also = s.also.map(tidyN); }
+// camera fixes per step (qa: <stage>_data_views.js, VIEWFIX = {step key: {also: [labels to keep in frame], view: [x, y, z]}})
+for (const s of D.steps){ const vf = (window.VIEWFIX||{})[s.key]; if (!vf) continue;
+  if (vf.also) s.also = (s.also||[]).concat(vf.also.map(tidyN)); if (vf.view) s.view = vf.view; }
+for (const p of [...(D.parts||[]), ...(D.wires||[])]){ p.label = tidyN(p.label); if (p.note) p.note = tidyN(p.note); if (p.group) p.group = tidyN(p.group); }
+for (const o of (D.parts||[])) for (const e of (o.offs||[])) if (e.mgrp) e.mgrp = tidyN(e.mgrp);
 const META = D.meta, STEPS = D.steps;
 const KIND = {printed:0xe9e9e6, bearing:0xb8bec6, pin:0xc9ced4, rod:0xb9bdc3, bolt:0x3a3d42, nut:0x55595f, screw:0x3a3d42, washer:0x9aa0a8,
               magnet:0x8c96a3, pulley:0xa9aeb5, belt:0x2b2b2b, motor:0x45484e, driver:0x2f3a4a, sensor:0x1f5fa8, other:0xd0d0d0};
@@ -356,7 +368,7 @@ function setPath(m, pts){ m.geometry.dispose(); m.geometry = tube(pts, m.userDat
 function spreadOff(m){
   if (!spread || isW(m)) return new THREE.Vector3();
   const p = m.userData.p, v = m.userData.home.clone().sub(SC).multiply(SW).multiplyScalar(1.4*spread);
-  return v.addScaledVector(V3(p.dir||[0,0,0]), (p.kind==='printed'?0:(p.dist||60))*0.9*spread);
+  return v.addScaledVector(V3(p.dir||[0,0,0]), (p.kind==='printed'?0:((p.dist ?? 60)))*0.9*spread);
 }
 function place(){
   if (iso) return;
@@ -501,7 +513,7 @@ function viewFor(focus, vis, n, fixed, prefer, occl, final){
     const e = mvAt(m.userData.p, n);
     if (e && !final){ box.union(tmp.clone().translate(V3(e.off))); mvd.add(V3(e.off)); }
     // a new part slides in from dir*dist: keep its start spot in the frame too, so the whole slide is seen
-    else if (!final && !isW(m) && m.userData.p.s===n && m.userData.p.dir){ const o = V3(m.userData.p.dir).normalize().multiplyScalar(m.userData.p.dist||60);
+    else if (!final && !isW(m) && m.userData.p.s===n && m.userData.p.dir){ const o = V3(m.userData.p.dir).normalize().multiplyScalar((m.userData.p.dist ?? 60));
       box.union(tmp.clone().translate(o)); mvd.add(o); }
   }
   if (box.isEmpty()) box.setFromCenterAndSize(ctl.target.clone(), new THREE.Vector3(100,100,100));
@@ -574,14 +586,15 @@ function fadeOne(m, f){
   m.children.forEach(c=>{ if (c.isLineSegments || c.isMesh) c.visible = !f; });   // a faint ghost: no outlines, no board details on top
 }
 function fadeFor(campos, focus, n){
-  const fs = new Set(focus), occ = all.filter(m=>m.visible && (!isW(m) || m.userData.p.s<n) && !fs.has(m) && !m.userData.p.ghost && !(m.userData.a && m.userData.a.rm));
+  // table boards fade too when they are in the way (a fixed view from below a part built on the table looked straight at the board)
+  const fs = new Set(focus), occ = all.filter(m=>m.visible && (!isW(m) || m.userData.p.s<n) && !fs.has(m) && !m.userData.p.ghost && !(m.userData.a && m.userData.a.rm)).concat(tables.filter(m=>m.visible));
   const pts = [], tmp = new THREE.Box3();
   for (const m of focus){ if (isW(m)) continue;
     m.updateMatrixWorld(true); tmp.setFromObject(m); if (tmp.isEmpty()) continue;
     const boxes = [tmp.clone()];
     const p = m.userData.p, e = mvAt(p, n);
     if (e) boxes.push(tmp.clone().translate(V3(e.off)));
-    else if (p.s===n && p.dir) boxes.push(tmp.clone().translate(V3(p.dir).normalize().multiplyScalar(p.dist||60)));
+    else if (p.s===n && p.dir) boxes.push(tmp.clone().translate(V3(p.dir).normalize().multiplyScalar((p.dist ?? 60))));
     for (const b of boxes){ const c = b.getCenter(new THREE.Vector3()), h = b.getSize(new THREE.Vector3()).multiplyScalar(.35);
       pts.push(c); for (const sx of [-1,1]) for (const sy of [-1,1]) for (const sz of [-1,1]) pts.push(c.clone().add(new THREE.Vector3(sx*h.x, sy*h.y, sz*h.z))); }
   }
@@ -626,7 +639,7 @@ function playStep(cv){
     if (cv){ const v = viewFor(goneM, cv.vis.concat(goneM), n, cv.fixed, prev, goneM); prev = v.dir; keys.push({t:0, v, f:goneM}); }
     const gap = Math.min(400, 2000/goneM.length);
     goneM.forEach((m,j)=>{ const p = m.userData.p, from = m.position.clone();
-      const to = isW(m) ? from.clone() : from.clone().addScaledVector(V3(p.dir||[0,0,1]), p.dist||60);
+      const to = isW(m) ? from.clone() : from.clone().addScaledVector(V3(p.dir||[0,0,1]), (p.dist ?? 60));
       m.userData.a = {t0:j*gap, from, to, pos:from.clone(), spin:isW(m)?0:(p.spin||0), rm:true}; });
     tend = (goneM.length-1)*gap + dur; start = tend + 250;
   }
@@ -642,9 +655,10 @@ function playStep(cv){
     }
     grp.forEach((m,j)=>{
       const p = m.userData.p, to = rest(m,n), mvE = mvAt(p,n), moving = !!mvE, w = isW(m);
-      const from = moving ? m.userData.home.clone().add(V3(mvE.off)) : (w ? to.clone() : to.clone().addScaledVector(V3(p.dir), p.dist||60));
+      // a group with 'jump' (qa/sweep.py: boxed in, no clear path) goes straight to its place instead of sliding through a part
+      const from = moving ? (mvE.jump ? to.clone() : m.userData.home.clone().add(V3(mvE.off))) : (w ? to.clone() : to.clone().addScaledVector(V3(p.dir), (p.dist ?? 60)));
       const a = {t0:start + j*gap, from, to, pos:from.clone(), spin:(moving||w)?0:(p.spin||0)};
-      if (moving && mvE.via) a.via = m.userData.home.clone().add(V3(mvE.via));
+      if (moving && mvE.via && !mvE.jump) a.via = m.userData.home.clone().add(V3(mvE.via));
       if (w && p.s===n) a.grow = true;
       if (w && p.s<n){ const kk = pathAt(m,n); if (kk>0 && p.sm[kk].s===n){ if (p.paths[kk].grow) a.grow = true; else a.morph=[p.sm[kk-1].pts, p.sm[kk].pts]; } }
       m.userData.a = a;
@@ -809,6 +823,11 @@ flyTo.ok = true; load.remove(); ready = true;
 window.__v = {go, viewFor, all, cam, ctl, THREE, steps:STEPS, get cur(){return cur}, get stepView(){return stepView}, get moving(){return !!tw}, get camPlan(){return camPlan}, get faded(){return faded}, get fadeFocus(){return fadeFocus}, fadeFor, isW, on};   // test hook
 (function loop(){requestAnimationFrame(loop); if(anim) anim(); place(); tweenCam(); ctl.update();
   const dist = cam.position.distanceTo(ctl.target); cam.near = Math.max(.05, dist/100); cam.far = dist*30 + 2000; cam.updateProjectionMatrix();
+  // a table board is drawn only when the camera is above its top: from below (a part built on the table, looked at
+  // from underneath) the board would fill the whole view
+  for (const m of tables){ if (!m.userData.show || iso || spread) continue; const t = m.userData.table;
+    const top = m.localToWorld(new THREE.Vector3(0, 0, t.size[2]/2)), up = m.localToWorld(new THREE.Vector3(0, 0, t.size[2]/2 + 1)).sub(top);
+    m.visible = cam.position.clone().sub(top).dot(up) > 0; }
   s1.position.copy(cam.position); s1.target.position.copy(ctl.target); ren.render(scene,cam); if (showNames) drawTags(); })();
 </script>
 </body>
