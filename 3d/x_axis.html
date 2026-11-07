@@ -324,7 +324,14 @@ for (const t of (D.tables||[])){
   lab.position.set(0, -t.size[1]/2 + tw_/8 + 4, t.size[2]/2 + 0.2); lab.renderOrder = 2; m.add(lab);
   m.userData = {table:t, p:{label:'Table (made up: your work table, not a part of the arm)'}}; m.visible = false; root.add(m); tables.push(m);
 }
-const showTables = n=>tables.forEach(m=>{ const t=m.userData.table; m.userData.show = n>=t.first && n<=t.ms; m.visible = !iso && !spread && m.userData.show; });
+// a table board is shown while its bench group waits on it, but never through a part that is not on that table
+// (e.g. the bench electronics' board reaching into the gripper being built in the arm)
+const onTable = (p, t)=>(p.offs||[]).some(e=>e.ms===t.ms && Math.abs(e.off[0]-t.off[0])+Math.abs(e.off[1]-t.off[1])+Math.abs(e.off[2]-t.off[2])<0.01);
+const showTables = n=>tables.forEach(m=>{ const t=m.userData.table; m.userData.show = n>=t.first && n<=t.ms;
+  if (m.userData.show && t.off){ const tb = new THREE.Box3().setFromObject(m).expandByScalar(-0.5);
+    for (const o of all){ if (!o.visible || isW(o) || onTable(o.userData.p, t)) continue; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      if (o.geometry.boundingBox.clone().translate(o.position).intersectsBox(tb)){ m.userData.show = false; break; } } }
+  m.visible = !iso && !spread && m.userData.show; });
 const count = {}, stepsOf = {};
 for (const m of all){ const p=m.userData.p; count[p.label]=(count[p.label]||0)+1; (stepsOf[p.label] ||= new Set()).add(p.s); }
 const sname = s => s<0 ? META.base_steps : (STEPS[s].kind==='card' ? '“'+STEPS[s].title+'”' : STEPS[s].n);

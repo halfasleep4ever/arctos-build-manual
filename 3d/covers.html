@@ -132,7 +132,7 @@
 <div id="hint">Tap a piece or a wire for a close-up. Drag to turn, scroll to zoom.</div>
 <div id="load"><div>Loading the 3D parts…</div><div class="pb"><i></i></div><div class="m"></div></div>
 <script>window.VIEWFIX={}; document.write('<script src="'+'covers_data.js'.replace('_data.js','_data_views.js')+'"><\/script>');</script>
-<script>window.ST_FILE='covers_data.js'; window.ST_BYTES=+'11845626'||0; if (new URLSearchParams(location.search).get('embed')==='1') document.body.classList.add('embed');
+<script>window.ST_FILE='covers_data.js'; window.ST_BYTES=+'11837742'||0; if (new URLSearchParams(location.search).get('embed')==='1') document.body.classList.add('embed');
   if (/^https?:$/.test(location.protocol)) window.__pk = fetch(window.ST_FILE);   // start the download at once (file:// pages load it with a script tag)
   addEventListener('message', e=>{ if (e.data && e.data.step!=null) window.__st0 = e.data; });   // a step asked for while the parts still load</script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","meshopt":"https://cdn.jsdelivr.net/npm/meshoptimizer@0.22.0/meshopt_decoder.module.js","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js"}}</script>
@@ -324,7 +324,14 @@ for (const t of (D.tables||[])){
   lab.position.set(0, -t.size[1]/2 + tw_/8 + 4, t.size[2]/2 + 0.2); lab.renderOrder = 2; m.add(lab);
   m.userData = {table:t, p:{label:'Table (made up: your work table, not a part of the arm)'}}; m.visible = false; root.add(m); tables.push(m);
 }
-const showTables = n=>tables.forEach(m=>{ const t=m.userData.table; m.userData.show = n>=t.first && n<=t.ms; m.visible = !iso && !spread && m.userData.show; });
+// a table board is shown while its bench group waits on it, but never through a part that is not on that table
+// (e.g. the bench electronics' board reaching into the gripper being built in the arm)
+const onTable = (p, t)=>(p.offs||[]).some(e=>e.ms===t.ms && Math.abs(e.off[0]-t.off[0])+Math.abs(e.off[1]-t.off[1])+Math.abs(e.off[2]-t.off[2])<0.01);
+const showTables = n=>tables.forEach(m=>{ const t=m.userData.table; m.userData.show = n>=t.first && n<=t.ms;
+  if (m.userData.show && t.off){ const tb = new THREE.Box3().setFromObject(m).expandByScalar(-0.5);
+    for (const o of all){ if (!o.visible || isW(o) || onTable(o.userData.p, t)) continue; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      if (o.geometry.boundingBox.clone().translate(o.position).intersectsBox(tb)){ m.userData.show = false; break; } } }
+  m.visible = !iso && !spread && m.userData.show; });
 const count = {}, stepsOf = {};
 for (const m of all){ const p=m.userData.p; count[p.label]=(count[p.label]||0)+1; (stepsOf[p.label] ||= new Set()).add(p.s); }
 const sname = s => s<0 ? META.base_steps : (STEPS[s].kind==='card' ? '“'+STEPS[s].title+'”' : STEPS[s].n);
