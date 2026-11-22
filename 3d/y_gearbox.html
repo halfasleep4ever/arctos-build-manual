@@ -284,7 +284,7 @@ for (const p of D.parts){
   const sw = new THREE.Color(p.color ? parseInt(p.color,16) : (KIND[p.kind]??KIND.other));
   if (rgb){ g.setAttribute('color', new THREE.BufferAttribute(rgb, 3)); p.vc = true; }
   const base = p.vc ? new THREE.Color(0xffffff) : sw;
-  const shiny = !['printed','belt','driver','sensor','terminal'].includes(p.kind);
+  const shiny = !['printed','belt','driver','sensor','terminal','motor'].includes(p.kind);
   const mat = new THREE.MeshStandardMaterial({color:base, vertexColors:!!p.vc, roughness:shiny?.35:.8, metalness:shiny?.55:0, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1});
   if (p.ghost){ mat.transparent = true; mat.opacity = .22; mat.depthWrite = false; }
   const m = new THREE.Mesh(g, mat);
